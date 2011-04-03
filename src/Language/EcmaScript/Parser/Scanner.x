@@ -76,7 +76,7 @@ $hexDigit = [0-9a-fA-F]
     "/" | "/="
 
 -- Comment
-@multiLineComment = \/\* ([^\*] | \* | $lineTerminator)* \*\/
+@multiLineComment = \/\* ([^\*] | \*+[^\/\*] | \n)* \*+\/
 @singleLineComment = \/\/ ~$lineTerminator*
 @comment = @singleLineComment | @multiLineComment
 
@@ -129,6 +129,6 @@ scan' i@(pos,str) =
     (AlexError _)            -> let (Just (c, i')) = alexGetChar i
                                  in  errToken [c] pos : scan' i'
     (AlexSkip i' len)         -> scan' i'
-    (AlexToken i' len action) -> let token = action (take len str) (fst i')
+    (AlexToken i' len action) -> let token = action (take len str) pos
                                  in  token : scan' i'
 }
