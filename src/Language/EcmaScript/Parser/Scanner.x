@@ -76,7 +76,7 @@ $hexDigit = [0-9a-fA-F]
     "/" | "/="
 
 -- Comment
-@multiLineComment = \/\* ([^\*] | \*+[^\/\*] | \n)* \*+\/
+@multiLineComment = \/\* ([^\*] | \*+[^\/\*] | \*\n | \n)* \*+\/
 @singleLineComment = \/\/ ~$lineTerminator*
 @comment = @singleLineComment | @multiLineComment
 
