@@ -37,6 +37,10 @@ type FunctionBody = [SourceElement]
 emptyIdent :: Ident
 emptyIdent = ""
 
+data Program
+  = Program [SourceElement]
+  deriving Show
+
 data SourceElement
   = SEStatement Statement
   | SEFunctionDecl Ident [Ident] [SourceElement]

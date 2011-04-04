@@ -27,6 +27,7 @@
 
 module Language.EcmaScript.Parser.Parser (parse) where
 
+import GHC.Prim
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
 import UU.Scanner.Position
@@ -199,10 +200,10 @@ infixOpList = [ (ELogicOR,"||"),(ELogicAND,"&&"),(EBitOR,"|"),(EBitXOR,"^"),
                    (EUnsignedShiftRight,">>>"),(EAdd,"+"),(ESubtract,"-"),
                    (EModulus,"%"),(EDivide,"/"),(EMultiply,"*") ]
 
+infixOpListNoIn = filter ((/=) "in" . snd) infixOpList
 
 infixOps = anyOp infixOpList <?> "infix operator"
-infixOpsNoIn = let noIn = filter ((/=) "in" . snd)
-               in  anyOp (noIn infixOpList) <?> "infix operator (excluding in)"
+infixOpsNoIn = anyOp infixOpListNoIn <?> "infix operator (excluding in)"
 
 pInfixOpExpression :: Bool -> JsParser Expression
 pInfixOpExpression i | i         = infixOps `pChainl` pUnaryExpression
@@ -351,7 +352,7 @@ pFunctionDeclaration = SEFunctionDecl <$ pReserved "function" <*> pIdent <*>
 
 -- Program (14)
 pProgram :: JsParser [SourceElement]
-pProgram = pList pSourceElement
+pProgram = Program <$> pList pSourceElement
 
 -- SourceElement (14)
 pSourceElement :: JsParser SourceElement
@@ -363,7 +364,7 @@ pSEStatement = SEStatement <$> pStatement
 -- Interface
 -------------------------------------------------------------------------------
 
-parse :: FilePath -> [Token] -> Either String [SourceElement]
+parse :: FilePath -> [Token] -> Either String Program
 parse f tks
   = parseTokens (initPos f) pProgram tks
 
