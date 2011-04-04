@@ -27,14 +27,13 @@
 
 module Language.EcmaScript.Parser.Parser (parse) where
 
-import GHC.Prim
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
 import UU.Scanner.Position
 import UU.Scanner.GenToken
 import UU.Scanner.GenTokenOrd
 import UU.Scanner.GenTokenSymbol
-import Text.Printf
+
 import Language.EcmaScript.Parser.Tokens
 import Language.EcmaScript.AST
 
@@ -52,13 +51,7 @@ pValToken :: ValTokenType -> String -> JsParser String
 pValToken tp val = let tok = ValToken tp val noPos
                        f (ValToken _ x _) = x
                    in  f <$> pSym tok
-{-
-pReservedIdent :: String -> JsParser String
-pReservedIdent key = let tok = (ValToken TkIdent key noPos) :: Token
-                         f (ValToken _ x _) = x == key
-                         f _                = False
-                     in  key <$ pSatisfy f (Insertion (show tok) tok 5) 
--}
+
 maybePostfix :: a -> Maybe (a -> a) -> a
 maybePostfix = flip (maybe id ($))
 
@@ -128,10 +121,10 @@ pPropertyAssignment :: JsParser PropertyAssignment
 pPropertyAssignment = pPAExpr <|> pPAGet <|> pPASet <?> "property assignment"
 
 pPAExpr = PAExpr <$> pPropertyName <* pReserved ":" <*> pAssignmentExpression
-pPAGet = PAGet <$ pReserved "get" <*> pPropertyName <* pReserved "(" <*
+pPAGet = PAGet <$ pValToken TkIdent "get" <*> pPropertyName <* pReserved "(" <*
                   pReserved ")" <* pReserved "{" <*> pFunctionBody <*
                   pReserved "}"
-pPASet = PASet <$ pReserved "set" <*> pPropertyName <* pReserved "(" <*>
+pPASet = PASet <$ pValToken TkIdent "set" <*> pPropertyName <* pReserved "(" <*>
                   pIdent <* pReserved ")" <* pReserved "{" <*> pFunctionBody <*
                   pReserved "}"
 
