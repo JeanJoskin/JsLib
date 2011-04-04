@@ -351,7 +351,7 @@ pFunctionDeclaration = SEFunctionDecl <$ pReserved "function" <*> pIdent <*>
                          pPack "{" (pList pSourceElement) "}"
 
 -- Program (14)
-pProgram :: JsParser [SourceElement]
+pProgram :: JsParser Program
 pProgram = Program <$> pList pSourceElement
 
 -- SourceElement (14)
