@@ -52,12 +52,6 @@ pValToken tp val = let tok = ValToken tp val noPos
                        f (ValToken _ x _) = x
                    in  f <$> pSym tok
 
-maybePostfix :: a -> Maybe (a -> a) -> a
-maybePostfix = flip (maybe id ($))
-
-maybePostfixC :: (a -> a) -> Maybe (a -> a) -> (a -> a)
-maybePostfixC = flip (maybe id (.))
-
 pIdent :: JsParser String
 pIdent = pValToken TkIdent "<identifier>"
 
@@ -130,13 +124,13 @@ pPASet = PASet <$ pValToken TkIdent "set" <*> pPropertyName <* pReserved "(" <*>
 
 -- MemberExpression (11.2)
 pMemberExpression :: JsParser Expression
-pMemberExpression = maybePostfix <$> pPrimaryExpression <*> pMaybe pMemberExpressionPost <|>
-                    maybePostfix <$> pEFunction <*> pMaybe pMemberExpressionPost <|>
-                    maybePostfix <$> pENew <*> pMaybe pMemberExpressionPost
+pMemberExpression = pPrimaryExpression <??> pMemberExpressionPost <|>
+                    pEFunction <??> pMemberExpressionPost <|>
+                    pENew <??> pMemberExpressionPost
 
 pMemberExpressionPost :: JsParser (Expression -> Expression)
-pMemberExpressionPost = maybePostfixC <$> pEIndex <*> pMaybe pMemberExpressionPost <|>
-                          maybePostfixC <$> pEDot <*> pMaybe pMemberExpressionPost
+pMemberExpressionPost = flip (.) <$> pEIndex <*> opt pMemberExpressionPost id <|>
+                          flip (.) <$> pEDot <*> opt pMemberExpressionPost id
 
 pEFunction = EFunction <$ pReserved "function" <*> opt pIdent emptyIdent
                  <*> pPack "(" (pCommaList pIdent) ")"
@@ -153,14 +147,14 @@ pENewSimple = (\x -> ENew x []) <$ pReserved "new" <*> pNewExpression <?> "new"
 
 -- CallExpression (11.2) (modified)
 pCallExpression :: JsParser Expression
-pCallExpression = maybePostfix <$> pCECallMemberExpr <*> pMaybe pCallExpressionPost
+pCallExpression = pCECallMemberExpr <??> pCallExpressionPost
 
 pCallExpressionPost :: JsParser (Expression -> Expression)
-pCallExpressionPost = maybePostfixC <$> pCECall <*> pMaybe pCallExpressionPost <|>
-                        maybePostfixC <$> pCEIndex <*> pMaybe pCallExpressionPost <|>
-                        maybePostfixC <$> pCEDot <*> pMaybe pCallExpressionPost
+pCallExpressionPost = flip (.) <$> pCECall <*> opt pCallExpressionPost id <|>
+                        flip (.) <$> pCEIndex <*> opt pCallExpressionPost id <|>
+                        flip (.) <$> pCEDot <*> opt pCallExpressionPost id
 
-pCECallMemberExpr = maybePostfix <$> pMemberExpression <*> pMaybe (flip ECall <$> pArguments)
+pCECallMemberExpr = pMemberExpression <??> (flip ECall <$> pArguments)
 
 pCECall = flip ECall <$> pArguments
 pCEIndex = flip EIndex <$> pPack "[" pExpression "]"
@@ -174,7 +168,7 @@ pLeftHandSideExpression = pNewExpression <|> pCallExpression
 postfixOps = anyOp [(EPostPlusPlus,"++"),(EPostMinMin,"--")] <?> "postfix operator"
 
 pPostFixExpression :: JsParser Expression
-pPostFixExpression = maybePostfix <$> pLeftHandSideExpression <*> (pMaybe postfixOps)
+pPostFixExpression = pLeftHandSideExpression <??> postfixOps
 
 -- UnaryExpression (11.4)
 unaryOps = anyOp [ (EDelete,"delete"),(EVoid,"void"),(ETypeOf,"typeof"),
@@ -204,7 +198,7 @@ pInfixOpExpression i | i         = infixOps `pChainl` pUnaryExpression
 
 -- ConditionalExpression (11.12)
 pConditionalExpression :: Bool -> JsParser Expression
-pConditionalExpression i = maybePostfix <$> pInfixOpExpression i <*> pMaybe (pEConditional i)
+pConditionalExpression i = pInfixOpExpression i <??> pEConditional i
 
 pEConditional i = (\a b p -> EConditional p a b) <$ pReserved "?" <*>
                     pAssignmentExpression' i <* pReserved ":" <*>
