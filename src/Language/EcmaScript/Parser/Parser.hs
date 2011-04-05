@@ -278,8 +278,8 @@ pVariableStatement' c = SVariable <$ pReserved "var" <*> pCommaList (pVariableDe
 pVariableStatement = pVariableStatement' noConstraints
 
 -- VariableDeclaration (12.2)
-pVariableDeclaration' :: Constraints -> JsParser (Ident,Maybe Expression)
-pVariableDeclaration' c = (,) <$> pIdent <*> (pMaybe pInitializer)
+pVariableDeclaration' :: Constraints -> JsParser Decl
+pVariableDeclaration' c = Decl <$> pIdent <*> (pMaybe pInitializer)
   where
     pInitializer = pReserved "=" *> pAssignmentExpression' c
 
@@ -361,7 +361,7 @@ pThrow = SThrow <$ pReserved "throw" <*> pExpression <* pReserved ";"
 pTry :: JsParser Statement
 pTry = STry <$ pReserved "try" <*> pBlock <*> pMaybe pCatch <*> pMaybe pFinally
 
-pCatch = (,) <$ pReserved "catch" <*> pPack "(" pIdent ")" <*> pBlock
+pCatch = CatchClause <$ pReserved "catch" <*> pPack "(" pIdent ")" <*> pBlock
 pFinally = pReserved "finally" *> pBlock
 
 -- DebuggerStatement (12.15)

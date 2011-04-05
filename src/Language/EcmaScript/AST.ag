@@ -1,0 +1,171 @@
+{
+--
+-- Copyright (c) 2011, Jean Joskin
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions are met:
+--     * Redistributions of source code must retain the above copyright
+--       notice, this list of conditions and the following disclaimer.
+--     * Redistributions in binary form must reproduce the above copyright
+--       notice, this list of conditions and the following disclaimer in the
+--       documentation and/or other materials provided with the distribution.
+--     * Neither the name of Jean Joskin nor the
+--       names of its contributors may be used to endorse or promote products
+--       derived from this software without specific prior written permission.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+-- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+-- DISCLAIMED. IN NO EVENT SHALL JEAN JOSKIN BE LIABLE FOR ANY
+-- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+-- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+-- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+-- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+-- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+--
+
+module Language.EcmaScript.AST where
+
+import UU.Scanner.Position
+
+type Ident = String
+type Number = Double
+
+}
+
+TYPE FunctionBody = [SourceElement]
+
+DATA Program
+  | Program body : FunctionBody
+
+DATA SourceElement
+  | SEStatement stmt : Statement
+  | SEFunctionDecl ident: Ident params : Params body : FunctionBody
+
+DATA PropertyAssignment
+  | PAExpr name : PropertyName value : Expression
+  | PAGet name : PropertyName body : FunctionBody
+  | PASet name : PropertyName args : Ident body : FunctionBody
+
+DATA PropertyName
+  | PNIdent name : Ident
+  | PNString str : String
+  | PNNumeric num : Number
+
+TYPE Expressions = [Expression]
+
+TYPE PropertyAssignments = [PropertyAssignment]
+
+TYPE Params = [Ident]
+TYPE Arguments = [Expression]
+TYPE Statements = [Statement]
+
+DATA Expression
+  | EExpression expr : Expression
+  | EThis
+  | EIdent ident : Ident
+  | ENull
+  | EBool value : Bool
+  | ENumeric value : Number
+  | EString value : String
+  | EArray exprs : Expressions
+  | EObject props : PropertyAssignments
+  | EFunction ident : (Maybe Ident) params : Params body : FunctionBody
+  | EIndex expr : Expression index : Expression
+  | EDot expr : Expression propertyName : Ident
+  | ENew expr : Expression args : Arguments
+  | ECall expr : Expression args : Arguments
+  | EComma hd : Expression tl : Expression
+  | EPostPlusPlus expr : Expression
+  | EPostMinMin expr : Expression
+  | EDelete expr : Expression
+  | EVoid expr : Expression
+  | ETypeOf expr : Expression
+  | EPreInc expr : Expression
+  | EPreDec expr : Expression
+  | EUnaryPlus expr : Expression
+  | EUnaryMin expr : Expression
+  | EBitNot expr : Expression
+  | ELogicNot expr : Expression
+  | EMultiply left : Expression right : Expression
+  | EDivide left : Expression right : Expression
+  | EModulus left : Expression right : Expression
+  | EAdd left : Expression right : Expression
+  | ESubtract left : Expression right : Expression
+  | ESignedShiftLeft left : Expression right : Expression
+  | ESignedShiftRight left : Expression right : Expression
+  | EUnsignedShiftRight left : Expression right : Expression
+  | ELess left : Expression right : Expression
+  | EGreater left : Expression right : Expression
+  | ELessEqual left : Expression right : Expression
+  | EGreaterEqual left : Expression right : Expression
+  | EInstanceof expr : Expression ty : Expression
+  | EIn left : Expression right : Expression
+  | EEqual left : Expression right : Expression
+  | ENotEqual left : Expression right : Expression
+  | EStrictEqual left : Expression right : Expression
+  | EStrictNotEqual left : Expression right : Expression
+  | EBitAND left : Expression right : Expression
+  | EBitXOR left : Expression right : Expression
+  | EBitOR left : Expression right : Expression
+  | ELogicAND left : Expression right : Expression
+  | ELogicOR left : Expression right : Expression
+  | EConditional cond : Expression yes : Expression no : Expression
+  | EAssign left : Expression right : Expression
+  | EAssignMultiply left : Expression right : Expression
+  | EAssignDivide left : Expression right : Expression
+  | EAssignAdd left : Expression right : Expression
+  | EAssignSubtract left : Expression right : Expression
+  | EAssignModulus left : Expression right : Expression
+  | EAssignSignedShiftLeft left : Expression right : Expression
+  | EAssignSignedShiftRight left : Expression right : Expression
+  | EAssignUnsignedShiftRight left : Expression right : Expression
+  | EAssignBitAND left : Expression right : Expression
+  | EAssignBitXOR left : Expression right : Expression
+  | EAssignBitOR left : Expression right : Expression
+
+DATA Decl
+  | Decl ident : Ident expr : (Maybe Expression)
+
+TYPE Decls = [Decl]
+
+DATA ForClause
+  | FCExprExprExpr init : (Maybe Expression) cond : (Maybe Expression) next : (Maybe Expression)
+  | FCVarExprExpr init : Decls cond : (Maybe Expression) next : (Maybe Expression)
+  | FCLhsIn elem : Expression set : Expression
+  | FCVarIn elem : Decl set : Expression
+
+DATA CaseClause
+  | CCCase value : Expression body : Statements
+  | CCDefault body : Statements
+
+TYPE CaseClauses = [CaseClause]
+
+DATA CatchClause
+  | CatchClause ident : Ident stmt : Statement
+
+DATA Statement
+  | SEmpty
+  | SBlock body : Statements
+  | SVariable assigns : Decls
+  | SExpression expr : Expression
+  | SIf cond : Expression thenStmt : Statement elseStmt : (Maybe Statement)
+  | SDoWhile body : Statement cond : Expression
+  | SWhile cond : Expression stmt : Statement
+  | SFor clause : ForClause stmt : Statement
+  | SContinue ident : (Maybe Ident)
+  | SBreak ident : (Maybe Ident)
+  | SReturn value : (Maybe Expression)
+  | SWith expr : Expression stmt : Statement
+  | SSwitch cond : Expression cases : CaseClauses
+  | SLabel name : Ident stmt : Statement
+  | SThrow value : Expression
+  | STry stmt : Statement catch : (Maybe CatchClause) finally : (Maybe Statement)
+  | SDebugger
+
+SET AllNt = Program SourceElement PropertyAssignment PropertyName Expression
+            Decl ForClause CaseClause CatchClause Statement
+
+DERIVING AllNt : Show
