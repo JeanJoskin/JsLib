@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.EcmaScript.Parser.Parser (parse, parseIO') where
+module Language.EcmaScript.Parser.Parser (parse) where
 
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
@@ -33,9 +33,6 @@ import UU.Scanner.Position
 import UU.Scanner.GenToken
 import UU.Scanner.GenTokenOrd
 import UU.Scanner.GenTokenSymbol
-
-import Debug.Trace
-import GHC.Exts
 
 import Language.EcmaScript.Parser.Tokens
 import Language.EcmaScript.AST
