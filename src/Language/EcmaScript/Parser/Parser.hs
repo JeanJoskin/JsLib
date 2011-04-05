@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.EcmaScript.Parser.Parser (parse) where
+module Language.EcmaScript.Parser.Parser (parse, parseIO') where
 
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
@@ -34,10 +34,33 @@ import UU.Scanner.GenToken
 import UU.Scanner.GenTokenOrd
 import UU.Scanner.GenTokenSymbol
 
+import Debug.Trace
+import GHC.Exts
+
 import Language.EcmaScript.Parser.Tokens
 import Language.EcmaScript.AST
 
 type JsParser a = Parser Token a
+
+data Constraint
+  = NoFun
+  | NoObject
+  | NoIn
+  deriving (Show,Eq)
+
+data Constraints = Constraints { constrPrefix :: [Constraint],
+                                 constrGlobal :: [Constraint] } deriving Show
+
+noConstraints = Constraints [] []
+
+constrRight :: Constraints -> Constraints
+constrRight cs = cs { constrPrefix = [] }
+
+rmConstr :: Constraints -> Constraint -> Constraints
+rmConstr (Constraints p g) c = Constraints (filter (/= c) p) (filter (/= c) g)
+
+hasConstraint :: Constraints -> Constraint -> Bool
+hasConstraint cs c = c `elem` constrPrefix cs || c `elem` constrGlobal cs
 
 -------------------------------------------------------------------------------
 -- Utilities
@@ -73,6 +96,16 @@ pPack o p c = pReserved o *> p <* pReserved c
 pMaybe :: JsParser a -> JsParser (Maybe a)
 pMaybe p = opt (Just <$> p) Nothing
 
+pChainrWithConstr :: (IsParser p s) => p (c -> c -> c) -> (Constraints -> p c) -> Constraints -> p c
+pChainrWithConstr op x c = x c <??> (flip <$> op <*> r)
+  where r = x (constrRight c) <??> (flip <$> op <*> r)
+
+pChainlWithConstr :: (IsParser p s) => p (c -> c -> c) -> (Constraints -> p c) -> Constraints -> p c
+pChainlWithConstr op x c = f <$> x c <*> pList_gr (flip <$> op <*> x (constrRight c))
+                      where
+                       f x [] = x
+                       f x (func:rest) = f (func x) rest
+
 -------------------------------------------------------------------------------
 -- Parsers
 -------------------------------------------------------------------------------
@@ -93,12 +126,13 @@ pENumeric = ENumeric <$> (read <$> pValToken TkNumeric "<number>")
 pEString = EString <$> (read <$> pValToken TkString "<string>")
 
 -- PrimaryExpression (11.1)
-pPrimaryExpression :: JsParser Expression
-pPrimaryExpression = pEThis <|> pEIdent <|> pLiteral <|> pEObject <|> pEArray <|> pEExpression <?> "primary expression"
+pPrimaryExpression :: Constraints -> JsParser Expression
+pPrimaryExpression c = pEThis <|> pEIdent <|> pLiteral <|> pEObject c <|> pEArray <|> pEExpression <?> "primary expression"
 
 pEThis = EThis <$ pReserved "this"
 pEIdent = EIdent <$> pValToken TkIdent "<identifier>"
-pEObject = EObject <$> pPack "{" (pCommaList pPropertyAssignment) "}"
+pEObject c | c `hasConstraint` NoObject = pFail
+           | otherwise = EObject <$> pPack "{" (pCommaList pPropertyAssignment) "}"
 pEArray = EArray <$> pPack "[" (pCommaList pAssignmentExpression) "]"
 pEExpression = EExpression <$> pPack "(" pExpression ")"
 
@@ -123,19 +157,19 @@ pPASet = PASet <$ pValToken TkIdent "set" <*> pPropertyName <* pReserved "(" <*>
                   pReserved "}"
 
 -- MemberExpression (11.2)
-pMemberExpression :: JsParser Expression
-pMemberExpression = pPrimaryExpression <??> pMemberExpressionPost <|>
-                    pEFunction <??> pMemberExpressionPost <|>
-                    pENew <??> pMemberExpressionPost
+pMemberExpression :: Constraints -> JsParser Expression
+pMemberExpression c = pPrimaryExpression c <??> pMemberExpressionPost <|>
+                      (if c `hasConstraint` NoFun then pFail else pEFunction <??> pMemberExpressionPost) <|>
+                      pENew c <??> pMemberExpressionPost
 
 pMemberExpressionPost :: JsParser (Expression -> Expression)
 pMemberExpressionPost = flip (.) <$> pEIndex <*> opt pMemberExpressionPost id <|>
                           flip (.) <$> pEDot <*> opt pMemberExpressionPost id
 
-pEFunction = EFunction <$ pReserved "function" <*> opt pIdent emptyIdent
+pEFunction = EFunction <$ pReserved "function" <*> pMaybe pIdent
                  <*> pPack "(" (pCommaList pIdent) ")"
                  <*> pPack "{" pFunctionBody "}" <?> "function definition"
-pENew = ENew <$ pReserved "new" <*> pMemberExpression <*> pArguments <?> "new"
+pENew c = ENew <$ pReserved "new" <*> pMemberExpression c <*> pArguments <?> "new"
 pEIndex = flip EIndex <$> pPack "[" pExpression "]" <?> "index"
 pEDot = flip EDot <$ pReserved "." <*> pIdent
 
@@ -146,37 +180,39 @@ pNewExpression = pENewSimple
 pENewSimple = (\x -> ENew x []) <$ pReserved "new" <*> pNewExpression <?> "new"
 
 -- CallExpression (11.2) (modified)
-pCallExpression :: JsParser Expression
-pCallExpression = pCECallMemberExpr <??> pCallExpressionPost
+pCallExpression :: Constraints -> JsParser Expression
+pCallExpression c = pCECallMemberExpr c <??> pCallExpressionPost
 
 pCallExpressionPost :: JsParser (Expression -> Expression)
 pCallExpressionPost = flip (.) <$> pCECall <*> opt pCallExpressionPost id <|>
                         flip (.) <$> pCEIndex <*> opt pCallExpressionPost id <|>
                         flip (.) <$> pCEDot <*> opt pCallExpressionPost id
 
-pCECallMemberExpr = pMemberExpression <??> (flip ECall <$> pArguments)
+pCECallMemberExpr c = pMemberExpression c <??> (flip ECall <$> pArguments)
 
 pCECall = flip ECall <$> pArguments
 pCEIndex = flip EIndex <$> pPack "[" pExpression "]"
 pCEDot = flip EDot <$ pReserved "." <*> pIdent
 
 -- LeftHandSideExpression (11.2)
-pLeftHandSideExpression :: JsParser Expression
-pLeftHandSideExpression = pNewExpression <|> pCallExpression
+pLeftHandSideExpression' :: Constraints -> JsParser Expression
+pLeftHandSideExpression' c = pNewExpression <|> pCallExpression c
+
+pLeftHandSideExpression = pLeftHandSideExpression' noConstraints
 
 -- PostFixExpression (11.3)
 postfixOps = anyOp [(EPostPlusPlus,"++"),(EPostMinMin,"--")] <?> "postfix operator"
 
-pPostFixExpression :: JsParser Expression
-pPostFixExpression = pLeftHandSideExpression <??> postfixOps
+pPostFixExpression :: Constraints -> JsParser Expression
+pPostFixExpression c = pLeftHandSideExpression' c <??> postfixOps
 
 -- UnaryExpression (11.4)
 unaryOps = anyOp [ (EDelete,"delete"),(EVoid,"void"),(ETypeOf,"typeof"),
              (EPreInc,"++"),(EPreDec,"--"),(EUnaryPlus,"+"),(EUnaryMin,"-"),
              (EBitNot,"~"),(ELogicNot,"!") ] <?> "unary operator"
 
-pUnaryExpression :: JsParser Expression
-pUnaryExpression = (unaryOps <*> pUnaryExpression) <|> pPostFixExpression
+pUnaryExpression :: Constraints -> JsParser Expression
+pUnaryExpression c = (unaryOps <*> pUnaryExpression (constrRight c)) <|> pPostFixExpression c
 
 -- Infix Operator Expressions (11.5 - 11.11)
 infixOpList = [ (ELogicOR,"||"),(ELogicAND,"&&"),(EBitOR,"|"),(EBitXOR,"^"),
@@ -192,17 +228,17 @@ infixOpListNoIn = filter ((/=) "in" . snd) infixOpList
 infixOps = anyOp infixOpList <?> "infix operator"
 infixOpsNoIn = anyOp infixOpListNoIn <?> "infix operator (excluding in)"
 
-pInfixOpExpression :: Bool -> JsParser Expression
-pInfixOpExpression i | i         = infixOps `pChainl` pUnaryExpression
-                     | otherwise = infixOpsNoIn `pChainl` pUnaryExpression
+pInfixOpExpression :: Constraints -> JsParser Expression
+pInfixOpExpression c | c `hasConstraint` NoIn = pChainlWithConstr infixOpsNoIn pUnaryExpression (c `rmConstr` NoIn)
+                     | otherwise              = pChainlWithConstr infixOps pUnaryExpression c
 
 -- ConditionalExpression (11.12)
-pConditionalExpression :: Bool -> JsParser Expression
-pConditionalExpression i = pInfixOpExpression i <??> pEConditional i
+pConditionalExpression :: Constraints -> JsParser Expression
+pConditionalExpression c = pInfixOpExpression c <??> pEConditional (constrRight c)
 
-pEConditional i = (\a b p -> EConditional p a b) <$ pReserved "?" <*>
-                    pAssignmentExpression' i <* pReserved ":" <*>
-                    pAssignmentExpression' i <?> "conditional"
+pEConditional c = (\a b p -> EConditional p a b) <$ pReserved "?" <*>
+                    pAssignmentExpression' c <* pReserved ":" <*>
+                    pAssignmentExpression' c <?> "conditional"
 
 -- AssignmentExpression (11.13)
 assignOps = anyOp [(EAssign,"="),(EAssignMultiply,"*="),(EAssignDivide,"/="),(EAssignModulus,"%="),
@@ -211,19 +247,20 @@ assignOps = anyOp [(EAssign,"="),(EAssignMultiply,"*="),(EAssignDivide,"/="),(EA
              (EAssignBitAND,"&="),(EAssignBitXOR,"^="),(EAssignBitOR,"|=")]
              <?> "assignment operator"
 
-pAssignmentExpression' :: Bool -> JsParser Expression
-pAssignmentExpression' i = pConditionalExpression i <|> pEAssignment i
+pAssignmentExpression' :: Constraints -> JsParser Expression
+pAssignmentExpression' c = pConditionalExpression c <|> pEAssignment c
 
-pAssignmentExpression = pAssignmentExpression' True
+pAssignmentExpression = pAssignmentExpression' noConstraints
 
-pEAssignment i = (\lhs op expr -> op lhs expr) <$> pLeftHandSideExpression <*>
-                   assignOps <*> pAssignmentExpression' i <?> "assignment"
+pEAssignment c = (\lhs op expr -> op lhs expr) <$> pLeftHandSideExpression' c <*>
+                   assignOps <*> pAssignmentExpression' (constrRight c) <?> "assignment"
 
 -- Expression (11.14)
-pExpression' :: Bool -> JsParser Expression
-pExpression' i = pOp (EComma,",") `pChainr` pAssignmentExpression' i
+pExpression' :: Constraints -> JsParser Expression
+pExpression' = pChainrWithConstr (pOp (EComma,",")) pAssignmentExpression'
 
-pExpression = pExpression' True
+pExpression = pExpression' noConstraints
+pExpressionNoIn = pExpression' (Constraints [] [NoIn])
 
 -- Statement (12)
 pStatement :: JsParser Statement
@@ -238,16 +275,19 @@ pBlock :: JsParser Statement
 pBlock = SBlock <$> pPack "{" (pList pStatement) "}"
 
 -- VariableStatement (12.2)
-pVariableStatement' :: Bool -> JsParser Statement
-pVariableStatement' i = SVariable <$ pReserved "var" <*> pCommaList (pVariableDeclaration i) <* pReserved ";"
+pVariableStatement' :: Constraints -> JsParser Statement
+pVariableStatement' c = SVariable <$ pReserved "var" <*> pCommaList (pVariableDeclaration' c) <* pReserved ";"
 
-pVariableStatement = pVariableStatement' True
+pVariableStatement = pVariableStatement' noConstraints
 
 -- VariableDeclaration (12.2)
-pVariableDeclaration :: Bool -> JsParser (Ident,Maybe Expression)
-pVariableDeclaration i = (,) <$> pIdent <*> (pMaybe pInitializer)
+pVariableDeclaration' :: Constraints -> JsParser (Ident,Maybe Expression)
+pVariableDeclaration' c = (,) <$> pIdent <*> (pMaybe pInitializer)
   where
-    pInitializer = pReserved "=" *> pAssignmentExpression' i
+    pInitializer = pReserved "=" *> pAssignmentExpression' c
+
+pVariableDeclaration = pVariableDeclaration' noConstraints
+pVariableDeclarationNoIn = pVariableDeclaration' (Constraints [] [NoIn])
 
 -- EmptyStatement (12.3)
 pEmptyStatement :: JsParser Statement
@@ -255,7 +295,7 @@ pEmptyStatement = SEmpty <$ pReserved ";"
 
 -- ExpressionStatement (12.4)
 pExpressionStatement :: JsParser Statement
-pExpressionStatement = SExpression <$> pExpression <* pReserved ";"
+pExpressionStatement = SExpression <$> pExpression' (Constraints [NoFun,NoObject] []) <* pReserved ";"
 
 -- IfStatement (12.5)
 pIfStatement :: JsParser Statement
@@ -276,13 +316,13 @@ pSFor = SFor <$ pReserved "for" <*> pPack "(" pForClause ")" <*> pStatement
 pForClause :: JsParser ForClause
 pForClause = pFCExprExprExpr <|> pFCVarExprExpr <|> pFCLhsIn <|> pFCVarIn
 
-pFCExprExprExpr = FCExprExprExpr <$> pMaybe (pExpression' False) <* pReserved ";" <*>
+pFCExprExprExpr = FCExprExprExpr <$> pMaybe pExpressionNoIn <* pReserved ";" <*>
                     pMaybe pExpression <* pReserved ";" <*> pMaybe pExpression
-pFCVarExprExpr = FCVarExprExpr <$ pReserved "var" <*> pCommaList (pVariableDeclaration False) <*
+pFCVarExprExpr = FCVarExprExpr <$ pReserved "var" <*> pCommaList pVariableDeclarationNoIn <*
                    pReserved ";" <*> pMaybe pExpression <* pReserved ";" <*>
                    pMaybe pExpression
 pFCLhsIn = FCLhsIn <$> pLeftHandSideExpression <* pReserved "in" <*> pExpression
-pFCVarIn = FCVarIn <$ pReserved "var" <*> pVariableDeclaration False <*
+pFCVarIn = FCVarIn <$ pReserved "var" <*> pVariableDeclarationNoIn <*
              pReserved "in" <*> pExpression
 
 -- ContinueStatement (12.7)
