@@ -72,7 +72,9 @@ $hexDigit = [0-9a-fA-F]
     "^" | "|" | "&" | ">>>" | "<<" | ">>" |
     ":" | "?" | "||" | "&&" | "~" | "!" |
     ">>=" | "%=" | "*=" | "-=" | "+=" | "=" |
-    "^=" | "|=" | "&="  | ">>>=" | "<<=" |
+    "^=" | "|=" | "&="  | ">>>=" | "<<="
+
+@divPunctuator =
     "/" | "/="
 
 -- Comment
@@ -91,22 +93,33 @@ $hexDigit = [0-9a-fA-F]
 
 @hexLiteral = 0[xX] $hexDigit+
 
+-- Regular expressions
+$regExpNT = . # [\/ \\ \*]
+@regExpEscape = \\ $regExpNT
+@regExpClass = \[ ($regExpNT # [\]\\] | @regExpEscape)+ \]
+@regExpChar = $regExpNT # [\\\/\[] | @regExpEscape | @regExpClass
+@regExpFirstChar = $regExpNT # [\*\\\/\[] | @regExpEscape | @regExpClass
+
+@regExpLiteral = \/ @regExpFirstChar @regExpChar* \/ @identifierPart*
+
 -------------------------------------------------------------------------------
 -- Token definitions
 -------------------------------------------------------------------------------
 
 tokens :-
-  <0>     \" @stringDoubleQ* \"             { ValToken TkString }
-  <0>     \' @stringSingleQ* \'             { ValToken TkString }
-  <0>     @keyword | @futureKeyword         { Reserved }
-  <0>     @punctuator                       { Reserved }
-  <0>     @comment                          ;
-  <0>     true | false                      { Reserved }
-  <0>     null                              { Reserved }
-  <0>     @decimalLiteral                   { ValToken TkNumeric }
-  <0>     @hexLiteral                       { ValToken TkNumeric }
-  <0>     @identifier                       { ValToken TkIdent }
-  <0>     $white+                           ;
+  <0,sdiv> \" @stringDoubleQ* \"             { ValToken TkString }
+  <0,sdiv> \' @stringSingleQ* \'             { ValToken TkString }
+  <0,sdiv> @keyword | @futureKeyword         { Reserved }
+  <0,sdiv> @punctuator                       { Reserved }
+  <sdiv>   @divPunctuator                    { Reserved }  
+  <0,sdiv> @comment                          ;
+  <0,sdiv> true | false                      { Reserved }
+  <0,sdiv> null                              { Reserved }
+  <0,sdiv> @decimalLiteral                   { ValToken TkNumeric }
+  <0,sdiv> @hexLiteral                       { ValToken TkNumeric }
+  <0,sdiv> @identifier                       { ValToken TkIdent }
+  <0>      @regExpLiteral                    { ValToken TkRegExp }
+  <0,sdiv> $white+                           ;
 
 {
 type AlexInput = (Pos, String)
@@ -119,16 +132,28 @@ alexGetChar (p, c:cs) = Just (c, (adv p c, cs))
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = error "alexInputPrevChar: should not be used."
 
-scan :: FilePath -> String -> [Token]
-scan f s = scan' (initPos f,s)
+regExTriggers = ["[","(","{",">=","<",">",",",";","!==","===","!=","==","<=","%",
+                 "*","-","+","^","|","&",">>>","<<",">>",":","?","||","&&","~",
+                 "!",">>=","%=","*=","-=","+=","=","^=","|=","&=",">>>=","<<=",
+                 "/","/="]
 
-scan' :: AlexInput -> [Token]
-scan' i@(pos,str) =
-  case (alexScan i 0) of
+updateState :: Token -> Int -> Int
+updateState (ValToken ty _ _) s = case ty of
+                                    TkComment -> s
+                                    _         -> sdiv
+updateState (Reserved r _) s | elem r regExTriggers = 0
+                             | otherwise            = sdiv
+
+scan :: FilePath -> String -> [Token]
+scan f s = scan' (initPos f,s) 0
+
+scan' :: AlexInput -> Int -> [Token]
+scan' i@(pos,str) s =
+  case (alexScan i s) of
     (AlexEOF)                 -> []
     (AlexError _)            -> let (Just (c, i')) = alexGetChar i
-                                 in  errToken [c] pos : scan' i'
-    (AlexSkip i' len)         -> scan' i'
+                                 in  errToken [c] pos : scan' i' s
+    (AlexSkip i' len)         -> scan' i' s
     (AlexToken i' len action) -> let token = action (take len str) pos
-                                 in  token : scan' i'
+                                 in  token : scan' i' (updateState token s)
 }

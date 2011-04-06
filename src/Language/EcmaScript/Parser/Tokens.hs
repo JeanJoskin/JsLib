@@ -38,6 +38,7 @@ data ValTokenType
   | TkIdent
   | TkNumeric
   | TkString
+  | TkRegExp
   | TkError
   deriving (Eq, Ord)
 
@@ -62,6 +63,7 @@ instance Show ValTokenType where
   TkIdent      -> "identifier"
   TkNumeric    -> "number"
   TkString     -> "string"
+  TkRegExp     -> "regular expression"
   TkError      -> "error in scanner:"
   
 maybeshow :: Pos -> String

@@ -124,10 +124,13 @@ pEString = EString <$> (read <$> pValToken TkString "<string>")
 
 -- PrimaryExpression (11.1)
 pPrimaryExpression :: Constraints -> JsParser Expression
-pPrimaryExpression c = pEThis <|> pEIdent <|> pLiteral <|> pEObject c <|> pEArray <|> pEExpression <?> "primary expression"
+pPrimaryExpression c = pEThis <|> pEIdent <|> pLiteral <|> pERegExp <|>
+                         pEObject c <|> pEArray <|> pEExpression
+                         <?> "primary expression"
 
 pEThis = EThis <$ pReserved "this"
 pEIdent = EIdent <$> pValToken TkIdent "<identifier>"
+pERegExp = ERegExp <$> pValToken TkRegExp "<regexp>"
 pEObject c | c `hasConstraint` NoObject = pFail
            | otherwise = EObject <$> pPack "{" (pCommaList pPropertyAssignment) "}"
 pEArray = EArray <$> pPack "[" (pCommaList pAssignmentExpression) "]"

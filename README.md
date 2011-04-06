@@ -3,6 +3,6 @@ Strict ECMAScript parser library
 
 Strict ECMAScript edition 5 (JavaScript) parser library for Haskell.
 
-Implemented: full specification grammar except regex literals
+Implemented: full specification grammar. Altough not thoroughly tested yet.
 
-Current status: under development
+Current status: under development. It's still a bit slow, I'm trying to improve that.
