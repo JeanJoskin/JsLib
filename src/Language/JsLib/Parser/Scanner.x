@@ -25,11 +25,11 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 {
-module Language.EcmaScript.Parser.Scanner (scan) where
+module Language.JsLib.Parser.Scanner (scan) where
 
 import UU.Scanner.GenToken
 import UU.Scanner.Position
-import Language.EcmaScript.Parser.Tokens
+import Language.JsLib.Parser.Tokens
 }
 -------------------------------------------------------------------------------
 -- Character groups

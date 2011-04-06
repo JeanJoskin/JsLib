@@ -1,4 +1,4 @@
-Strict ECMAScript parser library
+Js&955;ib
 ================================
 
 Strict ECMAScript edition 5 (JavaScript) parser library for Haskell.

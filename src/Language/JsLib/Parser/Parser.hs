@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.EcmaScript.Parser.Parser (parse) where
+module Language.JsLib.Parser.Parser (parse) where
 
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
@@ -34,8 +34,8 @@ import UU.Scanner.GenToken
 import UU.Scanner.GenTokenOrd
 import UU.Scanner.GenTokenSymbol
 
-import Language.EcmaScript.Parser.Tokens
-import Language.EcmaScript.AST
+import Language.JsLib.Parser.Tokens
+import Language.JsLib.AST
 
 type JsParser a = Parser Token a
 

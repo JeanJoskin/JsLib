@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.EcmaScript.Parser.Tokens (Token (..), ValTokenType (..), errToken, ppTokens) where
+module Language.JsLib.Parser.Tokens (Token (..), ValTokenType (..), errToken, ppTokens) where
 
 import UU.Scanner.GenToken
 import UU.Scanner.Position
