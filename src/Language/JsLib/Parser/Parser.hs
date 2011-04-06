@@ -174,10 +174,9 @@ pEIndex = flip EIndex <$> pPack "[" pExpression "]" <?> "index"
 pEDot = flip EDot <$ pReserved "." <*> pIdent
 
 -- NewExpression (11.2) (modified)
-pNewExpression :: JsParser Expression
-pNewExpression = pENewSimple
-
-pENewSimple = (\x -> ENew x []) <$ pReserved "new" <*> pNewExpression <?> "new"
+pNewExpression :: Constraints -> JsParser Expression
+pNewExpression c = (\x -> ENew x []) <$ pReserved "new" <*>
+                     (pNewExpression c <|> pMemberExpression c) <?> "new"
 
 -- CallExpression (11.2) (modified)
 pCallExpression :: Constraints -> JsParser Expression
@@ -196,7 +195,7 @@ pCEDot = flip EDot <$ pReserved "." <*> pIdent
 
 -- LeftHandSideExpression (11.2)
 pLeftHandSideExpression' :: Constraints -> JsParser Expression
-pLeftHandSideExpression' c = pNewExpression <|> pCallExpression c
+pLeftHandSideExpression' c = pNewExpression c <|> pCallExpression c
 
 pLeftHandSideExpression = pLeftHandSideExpression' noConstraints
 
