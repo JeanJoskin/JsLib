@@ -94,7 +94,7 @@ $hexDigit = [0-9a-fA-F]
 @hexLiteral = 0[xX] $hexDigit+
 
 -- Regular expressions
-$regExpNT = . # [\/ \\ \*]
+$regExpNT = .
 @regExpEscape = \\ $regExpNT
 @regExpClass = \[ ($regExpNT # [\]\\] | @regExpEscape)+ \]
 @regExpChar = $regExpNT # [\\\/\[] | @regExpEscape | @regExpClass
