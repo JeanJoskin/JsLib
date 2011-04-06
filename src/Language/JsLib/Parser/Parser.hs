@@ -27,6 +27,7 @@
 
 module Language.JsLib.Parser.Parser (parse) where
 
+import GHC.Base (Int (..))
 import UU.Parsing hiding (parse)
 import qualified UU.Parsing (parse)
 import UU.Scanner.Position
@@ -66,6 +67,10 @@ hasConstraint cs c = c `elem` constrPrefix cs || c `elem` constrGlobal cs
 pReserved :: String -> JsParser String
 pReserved key = let tok = Reserved key noPos
                 in  key <$ pSym tok
+
+pCostReserved :: Int -> String -> JsParser String
+pCostReserved (I# c) key = let tok = Reserved key noPos 
+                           in  key <$ pCostSym c tok tok
 
 pValToken :: ValTokenType -> String -> JsParser String
 pValToken tp val = let tok = ValToken tp val noPos
@@ -306,7 +311,7 @@ pIterationStatement :: JsParser Statement
 pIterationStatement = pSDoWhile <|> pSWhile <|> pSFor
 
 pSDoWhile = SDoWhile <$ pReserved "do" <*> pStatement <* pReserved "while" <*>
-              pPack "(" pExpression ")"
+              pPack "(" pExpression ")" <*> pReserved ";"
 pSWhile = SWhile <$ pReserved "while" <*> pPack "(" pExpression ")" <*>
               pStatement
 pSFor = SFor <$ pReserved "for" <*> pPack "(" pForClause ")" <*> pStatement
@@ -374,7 +379,7 @@ pDebugger = SDebugger <$ pReserved "debugger" <* pReserved ";"
 pFunctionDeclaration :: JsParser SourceElement
 pFunctionDeclaration = SEFunctionDecl <$ pReserved "function" <*> pIdent <*>
                          pPack "(" (pCommaList pIdent) ")" <*>
-                         pPack "{" (pList pSourceElement) "}"
+                         pPack "{" pFunctionBody "}"
 
 -- Program (14)
 pProgram :: JsParser Program
