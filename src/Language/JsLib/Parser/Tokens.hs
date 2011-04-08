@@ -28,7 +28,7 @@
 module Language.JsLib.Parser.Tokens (Token (..), ValTokenType (..), position, errToken, ppTokens) where
 
 import Text.ParserCombinators.Parsec.Pos
-import UU.Pretty
+import Text.PrettyPrint.HughesPJ
 
 data Token = Reserved !String !SourcePos
            | ValToken !ValTokenType String !SourcePos
@@ -74,10 +74,9 @@ instance Show ValTokenType where
 -- Pretty printer
 -------------------------------------------------------------------------------
 
-ppTokens :: [Token] -> PP_Doc
-ppTokens = vlist . map ppToken
+ppTokens :: [Token] -> Doc
+ppTokens = vcat . map ppToken
 
-ppToken :: Token -> PP_Doc
-ppToken (Reserved str pos)    = "keyword " >|< show str >|< " at " >|< show pos
-ppToken (ValToken tp val pos) = show tp >|< " " >|< val >|< " at " >|< show pos
-
+ppToken :: Token -> Doc
+ppToken (Reserved str pos)    = text "keyword" <+> text str <+> text "at" <+> text (show pos)
+ppToken (ValToken tp val pos) = text (show tp) <+> text val <+> text "at" <+> text (show pos)
