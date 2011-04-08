@@ -25,14 +25,14 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.JsLib.Parser.Tokens (Token (..), ValTokenType (..), errToken, ppTokens) where
+module Language.JsLib.Parser.Tokens (Token (..), ValTokenType (..), position, errToken, ppTokens) where
 
-import UU.Scanner.GenToken
-import UU.Scanner.Position
+import Text.ParserCombinators.Parsec.Pos
 import UU.Pretty
 
-type Token = GenToken String ValTokenType String
-
+data Token = Reserved !String !SourcePos
+           | ValToken !ValTokenType String !SourcePos
+                 
 data ValTokenType
   = TkComment
   | TkIdent
@@ -42,8 +42,12 @@ data ValTokenType
   | TkError
   deriving (Eq, Ord)
 
-errToken :: String -> Pos -> Token
+errToken :: String -> SourcePos -> Token
 errToken = ValToken TkError
+
+position :: Token -> SourcePos
+position (Reserved _ p) = p
+position (ValToken _ _ p) = p
 
 -------------------------------------------------------------------------------
 -- Show instance
@@ -53,8 +57,8 @@ instance Show Token where
   showsPrec _ token
     = showString
        (case token of
-         Reserved key      pos -> "symbol "      ++ key ++ maybeshow pos
-         ValToken tp val   pos -> show tp ++ " " ++ val ++ maybeshow pos
+         Reserved key      pos -> "symbol "      ++ key ++ show pos
+         ValToken tp val   pos -> show tp ++ " " ++ val ++ show pos
        )
 
 instance Show ValTokenType where
@@ -65,12 +69,6 @@ instance Show ValTokenType where
   TkString     -> "string"
   TkRegExp     -> "regular expression"
   TkError      -> "error in scanner:"
-  
-maybeshow :: Pos -> String
-maybeshow (Pos l c fn) | l <= 0 || c <= 0 =  ""
-                       | otherwise        =  " at line " ++ show l
-                                          ++ ", column " ++ show c
-                                          ++ " of file " ++ show fn
 
 -------------------------------------------------------------------------------
 -- Pretty printer
@@ -80,8 +78,6 @@ ppTokens :: [Token] -> PP_Doc
 ppTokens = vlist . map ppToken
 
 ppToken :: Token -> PP_Doc
-ppToken (Reserved str pos)    = "keyword " >|< show str >|< " at " >|< ppPos pos
-ppToken (ValToken tp val pos) = show tp >|< " " >|< val >|< " at " >|< ppPos pos
+ppToken (Reserved str pos)    = "keyword " >|< show str >|< " at " >|< show pos
+ppToken (ValToken tp val pos) = show tp >|< " " >|< val >|< " at " >|< show pos
 
-ppPos :: Pos -> PP_Doc
-ppPos (Pos l c _) = show l >|< "," >|< show c

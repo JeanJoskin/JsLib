@@ -27,8 +27,7 @@
 {
 module Language.JsLib.Parser.Scanner (scan) where
 
-import UU.Scanner.GenToken
-import UU.Scanner.Position
+import Text.ParserCombinators.Parsec.Pos
 import Language.JsLib.Parser.Tokens
 }
 -------------------------------------------------------------------------------
@@ -122,12 +121,12 @@ tokens :-
   <0,sdiv> $white+                           ;
 
 {
-type AlexInput = (Pos, String)
+type AlexInput = (SourcePos, String)
 type StateStack = [Int]
 
 alexGetChar :: AlexInput -> Maybe (Char,AlexInput)
 alexGetChar (_, [])   = Nothing
-alexGetChar (p, c:cs) = Just (c, (adv p c, cs))
+alexGetChar (p, c:cs) = Just (c, (updatePosChar p c, cs))
 
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = error "alexInputPrevChar: should not be used."
@@ -145,7 +144,7 @@ updateState (Reserved r _) s | elem r regExTriggers = 0
                              | otherwise            = sdiv
 
 scan :: FilePath -> String -> [Token]
-scan f s = scan' (initPos f,s) 0
+scan f s = scan' (initialPos f,s) 0
 
 scan' :: AlexInput -> Int -> [Token]
 scan' i@(pos,str) s =
