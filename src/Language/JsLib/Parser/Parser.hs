@@ -169,16 +169,15 @@ pEConditional = (\a b p -> EConditional p a b) <$ pReserved "?" <*>
 -- AssignmentExpression (11.13) (modified)
 -- Fixme: Lefthand-side should not be a conditional, infix, unary or postfix
 
-assignOps = anyOp [(EAssign,"="),(EAssignMultiply,"*="),(EAssignDivide,"/="),(EAssignModulus,"%="),
-             (EAssignAdd,"+="),(EAssignSubtract,"-="),(EAssignSignedShiftLeft,"<<="),
-             (EAssignSignedShiftRight,">>="),(EAssignUnsignedShiftRight,">>>="),
-             (EAssignBitAND,"&="),(EAssignBitXOR,"^="),(EAssignBitOR,"|=")]
-             <?> "assignment operator"
+assignOps = anyOp [(AEquals,"="),(AMultiply,"*="),(ADivide,"/="),(AModulus,"%="),
+             (AAdd,"+="),(ASubtract,"-="),(ASignedShiftLeft,"<<="),
+             (ASignedShiftRight,">>="),(AUnsignedShiftRight,">>>="),
+             (ABitAND,"&="),(ABitXOR,"^="),(ABitOR,"|=")]
 
 pAssignmentExpression :: JsParser Expression
 pAssignmentExpression = pConditionalExpression <??> pEAssignment
 
-pEAssignment = (\op expr lhs -> op lhs expr) <$>
+pEAssignment = (\op rhs lhs -> EAssign lhs op rhs) <$>
                    assignOps <*> pAssignmentExpression <?> "assignment"
 
 -- Expression (11.14)

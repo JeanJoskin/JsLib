@@ -114,18 +114,21 @@ DATA Expression
   | ELogicAND left : Expression right : Expression
   | ELogicOR left : Expression right : Expression
   | EConditional cond : Expression yes : Expression no : Expression
-  | EAssign left : Expression right : Expression
-  | EAssignMultiply left : Expression right : Expression
-  | EAssignDivide left : Expression right : Expression
-  | EAssignAdd left : Expression right : Expression
-  | EAssignSubtract left : Expression right : Expression
-  | EAssignModulus left : Expression right : Expression
-  | EAssignSignedShiftLeft left : Expression right : Expression
-  | EAssignSignedShiftRight left : Expression right : Expression
-  | EAssignUnsignedShiftRight left : Expression right : Expression
-  | EAssignBitAND left : Expression right : Expression
-  | EAssignBitXOR left : Expression right : Expression
-  | EAssignBitOR left : Expression right : Expression
+  | EAssign left : Expression op : AssignOp right : Expression
+
+DATA AssignOp
+  | AEquals
+  | AMultiply
+  | ADivide
+  | AAdd
+  | ASubtract
+  | AModulus
+  | ASignedShiftLeft
+  | ASignedShiftRight
+  | AUnsignedShiftRight
+  | ABitAND
+  | ABitXOR
+  | ABitOR
 
 DATA Decl
   | Decl ident : Ident expr : (Maybe Expression)
@@ -167,6 +170,6 @@ DATA Statement
   | SDebugger
 
 SET AllNt = Program SourceElement PropertyAssignment PropertyName Expression
-            Decl ForClause CaseClause CatchClause Statement
+            Decl ForClause CaseClause CatchClause Statement AssignOp
 
 DERIVING AllNt : Show
