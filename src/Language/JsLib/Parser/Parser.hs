@@ -51,7 +51,7 @@ pLiteral = pENull <|> pEBool <|> pENumeric <|> pEString <?> "literal"
 pENull = ENull <$ pReserved "null"
 pEBool = EBool <$> anyOp [(True,"true"),(False,"false")]
 pENumeric = ENumeric . read <$> pValToken TkNumeric
-pEString = EString . read <$> pValToken TkString
+pEString = EString <$> pValToken TkString
 
 -- PrimaryExpression (11.1)
 pPrimaryExpression :: JsParser Expression
@@ -76,13 +76,13 @@ pPNNumeric = PNNumeric . read <$> pValToken TkNumeric
 
 -- PropertyAssignment (11.1.5)
 pPropertyAssignment :: JsParser PropertyAssignment
-pPropertyAssignment = pPAExpr <|> pPAGet <|> pPASet <?> "property assignment"
+pPropertyAssignment = try pPAGet <|> try pPASet <|> pPAExpr <?> "property assignment"
 
 pPAExpr = PAExpr <$> pPropertyName <* pReserved ":" <*> pAssignmentExpression
-pPAGet = PAGet <$ pValToken TkIdent <*> pPropertyName <* pReserved "(" <*
+pPAGet = PAGet <$ pReservedVal TkIdent "get" <*> pPropertyName <* pReserved "(" <*
                   pReserved ")" <* pReserved "{" <*> pFunctionBody <*
                   pReserved "}"
-pPASet = PASet <$ pValToken TkIdent <*> pPropertyName <* pReserved "(" <*>
+pPASet = PASet <$ pReservedVal TkIdent "set" <*> pPropertyName <* pReserved "(" <*>
                   pIdent <* pReserved ")" <* pReserved "{" <*> pFunctionBody <*
                   pReserved "}"
 
@@ -99,14 +99,9 @@ pMemberExpressionPost = flip (.) <$> pEIndex <*> option id pMemberExpressionPost
 pEFunction = EFunction <$ pReserved "function" <*> pMaybe pIdent
                  <*> pPack "(" (pCommaList pIdent) ")"
                  <*> pPack "{" pFunctionBody "}" <?> "function definition"
-pENew = ENew <$ pReserved "new" <*> pMemberExpression <*> pArguments <?> "new"
+pENew = ENew <$ pReserved "new" <*> pMemberExpression <*> option [] pArguments <?> "new"
 pEIndex = flip EIndex <$> pPack "[" pExpression "]" <?> "index"
 pEDot = flip EDot <$ pReserved "." <*> pIdent
-
--- NewExpression (11.2) (modified)
-pNewExpression :: JsParser Expression
-pNewExpression = (\x -> ENew x []) <$ pReserved "new" <*>
-                   (pNewExpression <|> pMemberExpression) <?> "new"
 
 -- CallExpression (11.2) (modified)
 pCallExpression :: JsParser Expression
@@ -123,12 +118,12 @@ pCECall = flip ECall <$> pArguments
 pCEIndex = flip EIndex <$> pPack "[" pExpression "]"
 pCEDot = flip EDot <$ pReserved "." <*> pIdent
 
--- LeftHandSideExpression (11.2)
+-- LeftHandSideExpression (11.2) (modified)
 pLeftHandSideExpression :: JsParser Expression
-pLeftHandSideExpression =  try pCallExpression <|> pNewExpression
+pLeftHandSideExpression =  pCallExpression
 
 -- PostFixExpression (11.3)
-postfixOps = anyOp [(EPostPlusPlus,"++"),(EPostMinMin,"--")] <?> "postfix operator"
+postfixOps = anyOp [(EPostInc,"++"),(EPostDec,"--")] <?> "postfix operator"
 
 pPostFixExpression :: JsParser Expression
 pPostFixExpression = pLeftHandSideExpression <??> postfixOps

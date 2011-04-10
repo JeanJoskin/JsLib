@@ -15,18 +15,22 @@ data UserState = UserState
 -------------------------------------------------------------------------------
 
 pReserved :: String -> JsParser String
-pReserved v = token pretty position m
+pReserved v = token show position m
   where
-    pretty t = show v
     m (Reserved v' _) | v == v' = Just v
     m _               = Nothing
 
 pValToken :: ValTokenType -> JsParser String
-pValToken ty = token pretty position m
+pValToken ty = token show position m
   where
-    pretty t = show ty
     m (ValToken ty' v _) | ty == ty' = Just v
     m _                  = Nothing
+
+pReservedVal :: ValTokenType -> String -> JsParser String
+pReservedVal ty v = token show position m
+  where
+    m (ValToken ty' v' _) | ty == ty' && v == v' = Just v
+    m _                   = Nothing
 
 -------------------------------------------------------------------------------
 -- Utility parsers
