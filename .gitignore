@@ -1,4 +1,8 @@
 *.o
 *.hi
-src/Language/EcmaScript/Parser/scanner.hs
 .DS_Store
+dist/*
+other/*
+Setup.*
+Setup
+!Setup.hs

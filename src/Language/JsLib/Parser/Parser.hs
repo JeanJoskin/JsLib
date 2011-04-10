@@ -318,7 +318,11 @@ parser = do
            eof
            return p
 
-parse :: FilePath -> [Token] -> Either String Program
+-- |Transforms a list of tokens into a abstract syntax tree (AST)s
+parse :: FilePath               -- ^ The filename it originates from. It is solely used for
+                                -- ^ error message purposes
+      -> [Token]                -- ^ List of tokens usually produced by Language.JsLib.Scanner
+      -> Either String Program  -- ^ Either an error message or the root element of the AST
 parse f tks
   = let result = runParser parser UserState f tks
     in  case result of

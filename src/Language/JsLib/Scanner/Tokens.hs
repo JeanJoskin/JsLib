@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.JsLib.Scanner.Tokens (Token (..), ValTokenType (..), position, errToken, ppTokens) where
+module Language.JsLib.Scanner.Tokens (Token (..), ValTokenType (..), position, errToken, prettyTokens) where
 
 import Text.ParserCombinators.Parsec.Pos
 import Text.PrettyPrint.HughesPJ
@@ -40,11 +40,15 @@ data ValTokenType
   | TkString
   | TkRegExp
   | TkError
-  deriving (Eq, Ord)
+  deriving Eq
 
-errToken :: String -> SourcePos -> Token
+-- |Produces an error token
+errToken :: String      -- ^ Error message
+         -> SourcePos   -- ^ The error position
+         -> Token
 errToken = ValToken TkError
 
+-- |Returns the position of a token
 position :: Token -> SourcePos
 position (Reserved _ p) = p
 position (ValToken _ _ p) = p
@@ -74,8 +78,9 @@ instance Show ValTokenType where
 -- Pretty printer
 -------------------------------------------------------------------------------
 
-ppTokens :: [Token] -> Doc
-ppTokens = vcat . map ppToken
+-- | Pretty prints a list of tokens. Use show to convert it into a String
+prettyTokens :: [Token] -> Doc
+prettyTokens = vcat . map ppToken
 
 ppToken :: Token -> Doc
 ppToken (Reserved str pos)    = text "keyword" <+> text str <+> text "at" <+> text (show pos)

@@ -14,18 +14,21 @@ data UserState = UserState
 -- Primary parsers
 -------------------------------------------------------------------------------
 
+-- |Parses a keyword token
 pReserved :: String -> JsParser String
 pReserved v = token show position m
   where
     m (Reserved v' _) | v == v' = Just v
     m _               = Nothing
 
+-- |Parses a value token of a given type
 pValToken :: ValTokenType -> JsParser String
 pValToken ty = token show position m
   where
     m (ValToken ty' v _) | ty == ty' = Just v
     m _                  = Nothing
 
+-- |Parses a value token of a given type and value
 pReservedVal :: ValTokenType -> String -> JsParser String
 pReservedVal ty v = token show position m
   where
@@ -36,6 +39,7 @@ pReservedVal ty v = token show position m
 -- Utility parsers
 -------------------------------------------------------------------------------
 
+-- |Parses an identifier
 pIdent :: JsParser String
 pIdent = pValToken TkIdent
 

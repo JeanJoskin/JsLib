@@ -27,7 +27,7 @@
 --
 }
 
-MODULE {Language.JsLib.Printer.Pretty} {ppProgram} {}
+MODULE {Language.JsLib.Printer.Pretty} {printPretty} {}
 
 PRAGMA genlinepragmas
 
@@ -41,10 +41,11 @@ import Data.List
 }
 
 {
-ppProgram :: Program -> String
-ppProgram p = let inh = Inh_Program
-                  syn = wrap_Program (sem_Program p) inh
-              in  render (pp_Syn_Program syn)
+-- |Pretty prints an AST given its root node
+printPretty :: Program -> String
+printPretty p = let inh = Inh_Program
+                    syn = wrap_Program (sem_Program p) inh
+                in  render (pp_Syn_Program syn)
 
 sepList :: Doc -> [Doc] -> Doc
 sepList sep xs = foldr (<>) empty (intersperse sep xs) 
@@ -63,6 +64,7 @@ blockBraces :: Int -> Doc -> Doc
 blockBraces i d | isEmpty d = lbrace <+> rbrace
                 | otherwise = lbrace $+$ (nest i d) $+$ rbrace
 
+-- | Pretty print a number
 prettyNum :: Number -> Doc
 prettyNum n | n - (fromIntegral flr) == 0 = text (show flr)
             | otherwise = text (show n)

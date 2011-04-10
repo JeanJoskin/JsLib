@@ -137,14 +137,24 @@ regExTriggers = ["[","(","{",">=","<",">",",",";","!==","===","!=","==","<=","%"
                  "!",">>=","%=","*=","-=","+=","=","^=","|=","&=",">>>=","<<=",
                  "/","/="]
 
-updateState :: Token -> Int -> Int
+-- |Updates the scanner state. The state is changed to 0 when we can expect
+-- |a regExp and switched to sdiv when we expect a division operator to handle
+-- |ambiguities in the syntax (e.g. is /b/c a regExp or a division
+-- |expression?).
+updateState :: Token  -- ^ The current token
+            -> Int    -- ^ The current state
+            -> Int    -- ^ The new state
 updateState (ValToken ty _ _) s = case ty of
                                     TkComment -> s
                                     _         -> sdiv
 updateState (Reserved r _) s | elem r regExTriggers = 0
                              | otherwise            = sdiv
 
-scan :: FilePath -> String -> [Token]
+-- |Chops a String into Tokens ignoring whitespace
+scan :: FilePath   -- ^ The filename it originates from. It is solely used for
+                   -- ^ error message purposes
+     -> String     -- ^ The String to be processed
+     -> [Token]    -- ^ A list of tokens
 scan f s = scan' (initialPos f,s) 0
 
 scan' :: AlexInput -> Int -> [Token]
