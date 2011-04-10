@@ -1,0 +1,19 @@
+Name:                JsLib
+Version:             0.5
+Description:         Strict ECMAScript (JavaScript) edition 5 parser library for Haskell
+License:             BSD3
+License-file:        LICENSE
+Author:              Jean Joskin
+Maintainer:          jean@joskin.nl
+Copyright:           Copyright (c) 2011, Jean Joskin
+Homepage:            https://github.com/JeanJoskin/JsLib
+Stability:           Experimental
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+
+Library
+     hs-source-dirs:    src
+     Build-Depends:     base >= 4.2 && <5, parsec >= 3, pretty
+     Exposed-modules:   Language.JsLib.AST
+                        Language.JsLib.Parser.Parser
+                        Language.JsLib.Printer.Pretty

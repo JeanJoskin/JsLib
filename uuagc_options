@@ -1,0 +1,5 @@
+file : "src/Language/JsLib/AST.ag"
+options : data
+
+file : "src/Language/JsLib/Printer/Pretty.ag"
+options : catas, signatures, semfuns, wrappers

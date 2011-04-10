@@ -31,7 +31,7 @@ MODULE {Language.JsLib.Printer.Pretty} {ppProgram} {}
 
 PRAGMA genlinepragmas
 
-INCLUDE "Language/JsLib/AST.ag"
+INCLUDE "../AST.ag"
 
 imports
 {
