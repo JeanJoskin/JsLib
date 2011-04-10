@@ -16,9 +16,11 @@ Build instructions
 2.  Build Js&#955;ib:
 
     `runhaskell Setup.hs configure`
+
     `runhaskell Setup.hs build`
 
 3.  Install Js&#955;ib:
+
     `runhaskell Setup.hs install`
 
 API Documentation
