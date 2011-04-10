@@ -57,8 +57,8 @@ instance Show Token where
   showsPrec _ token
     = showString
        (case token of
-         Reserved key      pos -> "symbol "      ++ key ++ show pos
-         ValToken tp val   pos -> show tp ++ " " ++ val ++ show pos
+         Reserved key      pos -> "symbol "      ++ key
+         ValToken tp val   pos -> show tp ++ " " ++ val
        )
 
 instance Show ValTokenType where
