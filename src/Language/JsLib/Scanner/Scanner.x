@@ -151,8 +151,8 @@ updateState (Reserved r _) s | elem r regExTriggers = 0
                              | otherwise            = sdiv
 
 -- |Chops a String into Tokens ignoring whitespace
-scan :: FilePath   -- ^ The filename it originates from. It is solely used for
-                   -- ^ error message purposes
+scan :: FilePath   -- ^ The filename the string originates from. It is solely
+                   --   used for error message purposes
      -> String     -- ^ The String to be processed
      -> [Token]    -- ^ A list of tokens
 scan f s = scan' (initialPos f,s) 0
