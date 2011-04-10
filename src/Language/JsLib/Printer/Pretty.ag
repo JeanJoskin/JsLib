@@ -1,0 +1,233 @@
+{
+--
+-- Copyright (c) 2011, Jean Joskin
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions are met:
+--     * Redistributions of source code must retain the above copyright
+--       notice, this list of conditions and the following disclaimer.
+--     * Redistributions in binary form must reproduce the above copyright
+--       notice, this list of conditions and the following disclaimer in the
+--       documentation and/or other materials provided with the distribution.
+--     * Neither the name of Jean Joskin nor the
+--       names of its contributors may be used to endorse or promote products
+--       derived from this software without specific prior written permission.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+-- WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+-- DISCLAIMED. IN NO EVENT SHALL JEAN JOSKIN BE LIABLE FOR ANY
+-- DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+-- (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+-- LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+-- ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+-- (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+-- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+--
+}
+
+MODULE {Language.JsLib.Printer.Pretty} {ppProgram} {}
+
+PRAGMA genlinepragmas
+
+INCLUDE "Language/JsLib/AST.ag"
+
+imports
+{
+import Text.PrettyPrint.HughesPJ
+import Language.JsLib.AST hiding (Ident,Number)
+import Data.List
+}
+
+{
+ppProgram :: Program -> String
+ppProgram p = let inh = Inh_Program
+                  syn = wrap_Program (sem_Program p) inh
+              in  render (pp_Syn_Program syn)
+
+sepList :: Doc -> [Doc] -> Doc
+sepList sep xs = foldr (<>) empty (intersperse sep xs) 
+
+commaList = sepList (text ", ")
+
+vSepList :: Doc -> [Doc] -> Doc
+vSepList sep [] = empty
+vSepList sep xs = foldr1 (\x r -> x <> sep $$ r) xs
+
+maybeText :: Maybe String -> Doc
+maybeText (Just s) = text s
+maybeText Nothing  = empty
+
+blockBraces :: Int -> Doc -> Doc
+blockBraces i d | isEmpty d = lbrace <+> rbrace
+                | otherwise = lbrace $+$ (nest i d) $+$ rbrace
+
+prettyNum :: Number -> Doc
+prettyNum n | n - (fromIntegral flr) == 0 = text (show flr)
+            | otherwise = text (show n)
+  where
+    flr = (floor n) :: Int
+}
+
+ATTR FunctionBody [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM Program [ | | pp : {Doc} ]
+  | Program lhs.pp = vcat @body.pp
+
+SEM SourceElement [ | | pp : {Doc} ]
+  | SEStatement lhs.pp = @stmt.pp
+  | SEFunctionDecl lhs.pp = text "function" <+> text @ident <> parens (commaList (map text @params)) $$
+                              blockBraces 4 (vcat @body.pp)
+
+ATTR Expression AssignOp [ | | pp : {Doc} ]
+ATTR Expressions Arguments [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM Expression
+  | EExpression  lhs.pp = lparen <> @expr.pp <> rparen
+  | EThis        lhs.pp = text "this" 
+  | EIdent       lhs.pp = text @ident
+  | ENull        lhs.pp = text "null"
+  | EBool        lhs.pp = text (if @value then "true" else "false")
+  | ENumeric     lhs.pp = prettyNum @value
+  | EString      lhs.pp = text @value
+  | ERegExp      lhs.pp = text @regexp
+  | EArray       lhs.pp = lbrack <> commaList @exprs.pp <> rbrack
+  | EObject      lhs.pp = blockBraces 2 (vSepList comma @props.pp)
+  | EFunction    lhs.pp = text "function" <+> maybeText @ident <>
+                            parens (commaList (map text @params)) $$
+                            blockBraces 4 (vcat @body.pp)
+  | EIndex       lhs.pp = @expr.pp <> brackets @index.pp
+  | EDot         lhs.pp = @expr.pp <> text "." <> text @propertyName
+  | ENew         lhs.pp = text "new" <+> @expr.pp <> parens (commaList @args.pp)
+  | ECall        lhs.pp = @expr.pp <> parens (commaList @args.pp)
+  | EComma       lhs.pp = @hd.pp <> text ", " <> @tl.pp
+  | EPostInc     lhs.pp = @expr.pp <> text "++"
+  | EPostDec     lhs.pp = @expr.pp <> text "--"
+  | EDelete      lhs.pp = text "delete" <+> @expr.pp
+  | EVoid        lhs.pp = text "void" <+> @expr.pp
+  | ETypeOf      lhs.pp = text "typeof" <+> @expr.pp
+  | EPreInc      lhs.pp = text "++" <> @expr.pp
+  | EPreDec      lhs.pp = text "--" <> @expr.pp
+  | EUnaryPlus   lhs.pp = text "+" <> @expr.pp
+  | EUnaryMin    lhs.pp = text "-" <> @expr.pp
+  | EBitNot      lhs.pp = text "~" <> @expr.pp
+  | ELogicNot    lhs.pp = text "!" <> @expr.pp
+  | EMultiply    lhs.pp = @left.pp <+> text "*" <+> @right.pp
+  | EDivide      lhs.pp = @left.pp <+> text "/" <+> @right.pp
+  | EModulus     lhs.pp = @left.pp <+> text "%" <+> @right.pp
+  | EAdd         lhs.pp = @left.pp <+> text "+" <+> @right.pp
+  | ESubtract    lhs.pp = @left.pp <+> text "-" <+> @right.pp
+  | ESignedShiftLeft lhs.pp = @left.pp <+> text "<<" <+> @right.pp
+  | ESignedShiftRight lhs.pp = @left.pp <+> text ">>" <+> @right.pp
+  | EUnsignedShiftRight lhs.pp = @left.pp <+> text ">>>" <+> @right.pp
+  | ELess        lhs.pp = @left.pp <+> text "<" <+> @right.pp
+  | EGreater     lhs.pp = @left.pp <+> text ">" <+> @right.pp
+  | ELessEqual   lhs.pp = @left.pp <+> text "<=" <+> @right.pp
+  | EGreaterEqual lhs.pp = @left.pp <+> text ">=" <+> @right.pp
+  | EInstanceof  lhs.pp = @expr.pp <+> text "instanceof" <+> @ty.pp
+  | EIn          lhs.pp = @left.pp <+> text "in" <+> @right.pp
+  | EEqual       lhs.pp = @left.pp <+> text "==" <+> @right.pp
+  | ENotEqual    lhs.pp = @left.pp <+> text "!=" <+> @right.pp
+  | EStrictEqual lhs.pp = @left.pp <+> text "===" <+> @right.pp
+  | EStrictNotEqual lhs.pp = @left.pp <+> text "!==" <+> @right.pp
+  | EBitAND      lhs.pp = @left.pp <+> text "&" <+> @right.pp
+  | EBitXOR      lhs.pp = @left.pp <+> text "^" <+> @right.pp
+  | EBitOR       lhs.pp = @left.pp <+> text "|" <+> @right.pp
+  | ELogicAND    lhs.pp = @left.pp <+> text "&&" <+> @right.pp
+  | ELogicOR     lhs.pp = @left.pp <+> text "||" <+> @right.pp
+  | EConditional lhs.pp = @cond.pp <+> text "?" <+> @yes.pp <+> text ":" <+> @no.pp
+  | EAssign      lhs.pp = @left.pp <+> @op.pp <+> @right.pp
+
+SEM AssignOp
+  | AEquals      lhs.pp = text "="
+  | AMultiply    lhs.pp = text "*="
+  | ADivide      lhs.pp = text "/="
+  | AAdd         lhs.pp = text "+="
+  | ASubtract    lhs.pp = text "-="
+  | AModulus     lhs.pp = text "%="
+  | ASignedShiftLeft lhs.pp = text "<<="
+  | ASignedShiftRight lhs.pp = text ">>="
+  | AUnsignedShiftRight lhs.pp = text ">>>="
+  | ABitAND      lhs.pp = text "&="
+  | ABitXOR      lhs.pp = text "^="
+  | ABitOR       lhs.pp = text "|="
+
+ATTR PropertyAssignments [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM PropertyAssignment [ | | pp : {Doc} ]
+  | PAExpr lhs.pp = @name.pp <+> text ":" <+> @value.pp
+  | PAGet  lhs.pp = text "get" <+> @name.pp <> text "()" $$
+                      blockBraces 4 (vcat @body.pp)
+  | PASet  lhs.pp = text "set" <+> @name.pp <> parens (text @args) $$
+                      blockBraces 4 (vcat @body.pp)
+
+SEM PropertyName [ | | pp : {Doc} ]
+  | PNIdent   lhs.pp = text @name
+  | PNString  lhs.pp = text @str
+  | PNNumeric lhs.pp = text (show @num)
+
+ATTR Decls [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM Decl [ | | pp : {Doc} ]
+  | Decl lhs.pp = text @ident <+>
+                    if isEmpty @expr.pp then empty else text "=" <+> @expr.pp
+
+SEM MbDeclExpr [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+SEM MbExpression [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+SEM MbDecl [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+SEM MbCatchClause [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+SEM CatchClause [ | | pp : {Doc} ]
+  | CatchClause lhs.pp = text "catch" <+> parens (text @ident) $$ @stmt.pp
+
+SEM ForClause [ | | pp : {Doc} ]
+  | FCExprExprExpr lhs.pp = @init.pp <> semi <+> @cond.pp <> semi <+> @next.pp
+  | FCVarExprExpr  lhs.pp = text "var" <+> commaList @init.pp <> semi <+> @cond.pp <> semi <+> @next.pp
+  | FCLhsIn        lhs.pp = @elem.pp <+> text "in" <+> @set.pp
+  | FCVarIn        lhs.pp = text "var" <+> @elem.pp <+> text "in" <+> @set.pp
+
+ATTR Statements [ | | pp USE {:} {[]} : {[Doc]} ]
+
+ATTR CaseClauses [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM CaseClause [ | | pp : {Doc} ]
+  | CCCase     lhs.pp = text "case" <+> @value.pp <> colon <+> foldr ($$) empty @body.pp
+  | CCDefault  lhs.pp = text "default" <> colon <+> foldr ($$) empty @body.pp
+
+SEM MbStatement [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+SEM Statement [ | | pp : {Doc} ]
+  | SEmpty    lhs.pp = semi
+  | SBlock    lhs.pp = blockBraces 4 (vcat @body.pp)
+  | SVariable lhs.pp = text "var" <+> (vSepList comma @assigns.pp) <> semi
+  | SExpression lhs.pp = @expr.pp <> semi
+  | SIf       lhs.pp = text "if" <+> parens @cond.pp $+$ @thenStmt.pp $+$
+                         if isEmpty @elseStmt.pp then empty else text "else" $+$ @elseStmt.pp
+  | SDoWhile  lhs.pp = text "do" $$ @body.pp <+> text "while" <+> parens @cond.pp <> semi
+  | SWhile    lhs.pp = text "while" <+> parens @cond.pp <+> @stmt.pp
+  | SFor      lhs.pp = text "for" <+> parens @clause.pp $$ @stmt.pp
+  | SContinue lhs.pp = text "continue" <+> maybeText @ident <> semi
+  | SBreak    lhs.pp = text "break" <+> maybeText @ident <> semi
+  | SReturn   lhs.pp = text "return" <+> @value.pp <> semi
+  | SWith     lhs.pp = text "with" <+> parens @expr.pp $$ @stmt.pp
+  | SSwitch   lhs.pp = text "switch" <+> parens @cond.pp $$ blockBraces 4 (vcat @cases.pp)
+  | SLabel    lhs.pp = text @name <> colon <+> @stmt.pp
+  | SThrow    lhs.pp = text "throw" <+> @value.pp <> semi
+  | STry      lhs.pp = text "try" $$ @stmt.pp <+>
+                         (if isEmpty @catch.pp then empty else @catch.pp) <+>
+                         (if isEmpty @finally.pp then empty else text "finally" <+> @finally.pp)
+  | SDebugger lhs.pp = text "debugger" <> semi
