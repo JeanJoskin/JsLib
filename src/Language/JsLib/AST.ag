@@ -1,3 +1,5 @@
+MODULE {Language.JsLib.AST} {} {}
+
 {
 --
 -- Copyright (c) 2011, Jean Joskin
@@ -26,10 +28,6 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.JsLib.AST where
-
-import UU.Scanner.Position
-
 type Ident = String
 type Number = Double
 
@@ -42,7 +40,7 @@ DATA Program
 
 DATA SourceElement
   | SEStatement stmt : Statement
-  | SEFunctionDecl ident: Ident params : Params body : FunctionBody
+  | SEFunctionDecl ident: Ident params : {[Ident]} body : FunctionBody
 
 DATA PropertyAssignment
   | PAExpr name : PropertyName value : Expression
@@ -58,7 +56,6 @@ TYPE Expressions = [Expression]
 
 TYPE PropertyAssignments = [PropertyAssignment]
 
-TYPE Params = [Ident]
 TYPE Arguments = [Expression]
 TYPE Statements = [Statement]
 
@@ -73,14 +70,14 @@ DATA Expression
   | ERegExp regexp : String
   | EArray exprs : Expressions
   | EObject props : PropertyAssignments
-  | EFunction ident : (Maybe Ident) params : Params body : FunctionBody
+  | EFunction ident : (Maybe Ident) params : {[Ident]} body : FunctionBody
   | EIndex expr : Expression index : Expression
   | EDot expr : Expression propertyName : Ident
   | ENew expr : Expression args : Arguments
   | ECall expr : Expression args : Arguments
   | EComma hd : Expression tl : Expression
-  | EPostPlusPlus expr : Expression
-  | EPostMinMin expr : Expression
+  | EPostInc expr : Expression
+  | EPostDec expr : Expression
   | EDelete expr : Expression
   | EVoid expr : Expression
   | ETypeOf expr : Expression
@@ -131,13 +128,18 @@ DATA AssignOp
   | ABitOR
 
 DATA Decl
-  | Decl ident : Ident expr : (Maybe Expression)
+  | Decl ident : Ident expr : MbDeclExpr
 
 TYPE Decls = [Decl]
 
+TYPE MbDeclExpr = MAYBE Expression
+TYPE MbExpression = MAYBE Expression
+TYPE MbDecl = MAYBE Decl
+TYPE MbStatement = MAYBE Statement
+
 DATA ForClause
-  | FCExprExprExpr init : (Maybe Expression) cond : (Maybe Expression) next : (Maybe Expression)
-  | FCVarExprExpr init : Decls cond : (Maybe Expression) next : (Maybe Expression)
+  | FCExprExprExpr init : MbDeclExpr cond : MbExpression next : MbExpression
+  | FCVarExprExpr init : Decls cond : MbExpression next : MbExpression
   | FCLhsIn elem : Expression set : Expression
   | FCVarIn elem : Decl set : Expression
 
@@ -147,6 +149,8 @@ DATA CaseClause
 
 TYPE CaseClauses = [CaseClause]
 
+TYPE MbCatchClause = MAYBE CatchClause
+
 DATA CatchClause
   | CatchClause ident : Ident stmt : Statement
 
@@ -155,18 +159,18 @@ DATA Statement
   | SBlock body : Statements
   | SVariable assigns : Decls
   | SExpression expr : Expression
-  | SIf cond : Expression thenStmt : Statement elseStmt : (Maybe Statement)
+  | SIf cond : Expression thenStmt : Statement elseStmt : MbStatement
   | SDoWhile body : Statement cond : Expression
   | SWhile cond : Expression stmt : Statement
   | SFor clause : ForClause stmt : Statement
   | SContinue ident : (Maybe Ident)
   | SBreak ident : (Maybe Ident)
-  | SReturn value : (Maybe Expression)
+  | SReturn value : MbExpression
   | SWith expr : Expression stmt : Statement
   | SSwitch cond : Expression cases : CaseClauses
   | SLabel name : Ident stmt : Statement
   | SThrow value : Expression
-  | STry stmt : Statement catch : (Maybe CatchClause) finally : (Maybe Statement)
+  | STry stmt : Statement catch : MbCatchClause finally : MbStatement
   | SDebugger
 
 SET AllNt = Program SourceElement PropertyAssignment PropertyName Expression
