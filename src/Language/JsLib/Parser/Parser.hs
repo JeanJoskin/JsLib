@@ -29,7 +29,7 @@ module Language.JsLib.Parser.Parser (parse) where
 
 import Text.ParserCombinators.Parsec hiding (parse,many,(<|>))
 import Text.ParserCombinators.Parsec.Pos
-import Language.JsLib.Parser.Tokens
+import Language.JsLib.Scanner.Tokens
 import Language.JsLib.AST
 import Control.Applicative
 import Language.JsLib.Parser.Prim

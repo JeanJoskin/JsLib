@@ -25,7 +25,7 @@
 -- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 --
 
-module Language.JsLib.Parser.Tokens (Token (..), ValTokenType (..), position, errToken, ppTokens) where
+module Language.JsLib.Scanner.Tokens (Token (..), ValTokenType (..), position, errToken, ppTokens) where
 
 import Text.ParserCombinators.Parsec.Pos
 import Text.PrettyPrint.HughesPJ

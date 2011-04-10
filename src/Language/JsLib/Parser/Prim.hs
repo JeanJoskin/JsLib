@@ -2,7 +2,7 @@ module Language.JsLib.Parser.Prim where
 
 import Text.ParserCombinators.Parsec hiding (many,(<|>))
 import Text.ParserCombinators.Parsec.Pos
-import Language.JsLib.Parser.Tokens
+import Language.JsLib.Scanner.Tokens
 import Language.JsLib.AST
 import Control.Applicative
 
