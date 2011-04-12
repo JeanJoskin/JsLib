@@ -15,7 +15,8 @@ Library
      hs-source-dirs:    src
      Build-Depends:     base >= 4.2 && <5, parsec >= 3, pretty, array
      Build-tools:       alex
-     Exposed-modules:   Language.JsLib.AST
+     Exposed-modules:   Language.JsLib
+                        Language.JsLib.AST
                         Language.JsLib.Scanner
                         Language.JsLib.Parser
                         Language.JsLib.Printer
