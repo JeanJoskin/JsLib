@@ -229,7 +229,7 @@ SEM Statement [ | | pp : {Doc} ]
   | SSwitch   lhs.pp = text "switch" <+> parens @cond.pp $$ blockBraces 4 (vcat @cases.pp)
   | SLabel    lhs.pp = text @name <> colon <+> @stmt.pp
   | SThrow    lhs.pp = text "throw" <+> @value.pp <> semi
-  | STry      lhs.pp = text "try" $$ @stmt.pp <+>
-                         (if isEmpty @catch.pp then empty else @catch.pp) <+>
-                         (if isEmpty @finally.pp then empty else text "finally" <+> @finally.pp)
+  | STry      lhs.pp = text "try" $$ @stmt.pp $+$
+                         (if isEmpty @catch.pp then empty else @catch.pp) $+$
+                         (if isEmpty @finally.pp then empty else text "finally" $+$ @finally.pp)
   | SDebugger lhs.pp = text "debugger" <> semi

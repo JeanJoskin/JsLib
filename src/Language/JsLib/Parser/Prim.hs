@@ -8,7 +8,13 @@ import Control.Applicative
 
 type JsParser a = GenParser Token UserState a
 
-data UserState = UserState
+data UserState = UserState {  permissiveSemicolon :: Bool }
+
+defaultState :: UserState
+defaultState = UserState { permissiveSemicolon = True }
+
+undef :: Expression
+undef = EIdent "undefined"
 
 -------------------------------------------------------------------------------
 -- Primary parsers
@@ -44,9 +50,9 @@ pIdent :: JsParser String
 pIdent = pValToken TkIdent
 
 pCommaList :: JsParser a -> JsParser [a]
-pCommaList p = sepBy p (pReserved ",")
+pCommaList p = sepBy p pComma
 
-pChoice :: [JsParser a] -> JsParser a
+pChoice :: [GenParser tok st a] -> GenParser tok st a
 pChoice = foldr (<|>) pzero
 
 pOp :: (a,String) -> JsParser a
@@ -58,8 +64,22 @@ anyOp = pChoice . map pOp
 pPack :: String -> JsParser a -> String -> JsParser a
 pPack o p c = pReserved o *> p <* pReserved c
 
-(<??>) :: JsParser a -> JsParser (a -> a) -> JsParser a
+(<??>) :: GenParser tok st a -> GenParser tok st (a -> a) -> GenParser tok st a
 p <??> q = p <**> option id q
 
-pMaybe :: JsParser a -> JsParser (Maybe a)
+pMaybe :: GenParser tok st a -> GenParser tok st (Maybe a)
 pMaybe = optionMaybe
+
+pComma :: JsParser String
+pComma = pReserved ","
+
+pSemi :: JsParser String
+pSemi = do
+          s <- getState
+          if (permissiveSemicolon s)
+            then option ";" (pReserved ";")
+            else pReserved ";"
+
+readNumeric :: String -> Double
+readNumeric s | head s == '.' = read ('0':s)
+              | otherwise     = read s

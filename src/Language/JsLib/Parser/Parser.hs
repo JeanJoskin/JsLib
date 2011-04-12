@@ -50,20 +50,20 @@ pLiteral = pENull <|> pEBool <|> pENumeric <|> pEString <?> "literal"
 
 pENull = ENull <$ pReserved "null"
 pEBool = EBool <$> anyOp [(True,"true"),(False,"false")]
-pENumeric = ENumeric . read <$> pValToken TkNumeric
+pENumeric = ENumeric . readNumeric <$> pValToken TkNumeric
 pEString = EString <$> pValToken TkString
 
--- PrimaryExpression (11.1)
+-- PrimaryExpression (11.1) (+RegExp)
 pPrimaryExpression :: JsParser Expression
 pPrimaryExpression = pEThis <|> pEIdent <|> pLiteral <|> pERegExp <|>
-                       pEObject <|> pEArray <|> pEExpression
+                       pEArray <|> pEObject <|> pEExpression
                        <?> "primary expression"
 
 pEThis = EThis <$ pReserved "this"
 pEIdent = EIdent <$> pValToken TkIdent
 pERegExp = ERegExp <$> pValToken TkRegExp
 pEObject = EObject <$> pPack "{" (pCommaList pPropertyAssignment) "}"
-pEArray = EArray <$> pPack "[" (pCommaList pAssignmentExpression) "]"
+pEArray = EArray <$> pPack "[" (pCommaList (option undef pAssignmentExpression)) "]"
 pEExpression = EExpression <$> pPack "(" pExpression ")"
 
 -- PropertyName (11.1.5)
@@ -197,7 +197,7 @@ pBlock = SBlock <$> pPack "{" (many pStatement) "}"
 
 -- VariableStatement (12.2)
 pVariableStatement :: JsParser Statement
-pVariableStatement = SVariable <$ pReserved "var" <*> pCommaList pVariableDeclaration <* pReserved ";"
+pVariableStatement = SVariable <$ pReserved "var" <*> pCommaList pVariableDeclaration <* pSemi
 
 -- VariableDeclaration (12.2)
 pVariableDeclaration :: JsParser Decl
@@ -212,7 +212,7 @@ pEmptyStatement = SEmpty <$ pReserved ";"
 -- ExpressionStatement (12.4)
 pExpressionStatement :: JsParser Statement
 pExpressionStatement =  SExpression <$ notFollowedBy (pReserved "function") <*>
-                          pExpression <* pReserved ";"
+                          pExpression <* pSemi
 
 -- IfStatement (12.5)
 pIfStatement :: JsParser Statement
@@ -224,7 +224,7 @@ pIterationStatement :: JsParser Statement
 pIterationStatement = pSDoWhile <|> pSWhile <|> pSFor
 
 pSDoWhile = SDoWhile <$ pReserved "do" <*> pStatement <* pReserved "while" <*>
-              pPack "(" pExpression ")" <* pReserved ";"
+              pPack "(" pExpression ")" <* pSemi
 pSWhile = SWhile <$ pReserved "while" <*> pPack "(" pExpression ")" <*>
               pStatement
 pSFor = SFor <$ pReserved "for" <*> pPack "(" pForClause ")" <*> pStatement
@@ -244,15 +244,15 @@ pFCVarIn = FCVarIn <$ pReserved "var" <*> pVariableDeclaration <*
 
 -- ContinueStatement (12.7)
 pContinueStatement :: JsParser Statement
-pContinueStatement = SContinue <$ pReserved "continue" <*> pMaybe pIdent <* pReserved ";"
+pContinueStatement = SContinue <$ pReserved "continue" <*> pMaybe pIdent <* pSemi
 
 -- BreakStatement (12.8)
 pBreakStatement :: JsParser Statement
-pBreakStatement = SBreak <$ pReserved "break" <*> pMaybe pIdent <* pReserved ";"
+pBreakStatement = SBreak <$ pReserved "break" <*> pMaybe pIdent <* pSemi
 
 -- ReturnStatement (12.9)
 pReturnStatement :: JsParser Statement
-pReturnStatement = SReturn <$ pReserved "return" <*> pMaybe pExpression <* pReserved ";"
+pReturnStatement = SReturn <$ pReserved "return" <*> pMaybe pExpression <* pSemi
 
 -- WithStatement (12.10)
 pWithStatement :: JsParser Statement
@@ -275,7 +275,7 @@ pLabelledStatement = SLabel <$> pIdent <* pReserved ":" <*> pStatement
 
 -- ThrowStatement (12.13)
 pThrow :: JsParser Statement
-pThrow = SThrow <$ pReserved "throw" <*> pExpression <* pReserved ";"
+pThrow = SThrow <$ pReserved "throw" <*> pExpression <* pSemi
 
 -- TryStatement (12.14)
 pTry :: JsParser Statement
@@ -286,7 +286,7 @@ pFinally = pReserved "finally" *> pBlock
 
 -- DebuggerStatement (12.15)
 pDebugger :: JsParser Statement
-pDebugger = SDebugger <$ pReserved "debugger" <* pReserved ";"
+pDebugger = SDebugger <$ pReserved "debugger" <* pSemi
 
 -------------------------------------------------------------------------------
 -- Program parsing
@@ -324,7 +324,7 @@ parse :: FilePath               -- ^ The filename the tokens originate from. It
       -> [Token]                -- ^ List of tokens. Usually produced by "Language.JsLib.Scanner"
       -> Either String Program  -- ^ Either an error message or the root element of the AST
 parse f tks
-  = let result = runParser parser UserState f tks
+  = let result = runParser parser defaultState f tks
     in  case result of
           (Left e) -> Left (show e)
           (Right r) -> Right r

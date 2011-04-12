@@ -132,10 +132,7 @@ alexGetChar (p, c:cs) = Just (c, (updatePosChar p c, cs))
 alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = error "alexInputPrevChar: should not be used."
 
-regExTriggers = ["[","(","{",">=","<",">",",",";","!==","===","!=","==","<=","%",
-                 "*","-","+","^","|","&",">>>","<<",">>",":","?","||","&&","~",
-                 "!",">>=","%=","*=","-=","+=","=","^=","|=","&=",">>>=","<<=",
-                 "/","/="]
+sdivTriggers = [ "]", ")", "++", "--" ]
 
 -- |Updates the scanner state. The state is changed to 0 when we can expect
 -- |a regExp and switched to sdiv when we expect a division operator to handle
@@ -147,8 +144,8 @@ updateState :: Token  -- ^ The current token
 updateState (ValToken ty _ _) s = case ty of
                                     TkComment -> s
                                     _         -> sdiv
-updateState (Reserved r _) s | elem r regExTriggers = 0
-                             | otherwise            = sdiv
+updateState (Reserved r _) s | elem r sdivTriggers = sdiv
+                             | otherwise           = 0
 
 -- |Chops a String into Tokens ignoring whitespace
 scan :: FilePath   -- ^ The filename the string originates from. It is solely
