@@ -60,9 +60,17 @@ maybeText :: Maybe String -> Doc
 maybeText (Just s) = text s
 maybeText Nothing  = empty
 
-blockBraces :: Int -> Doc -> Doc
-blockBraces i d | isEmpty d = lbrace <+> rbrace
-                | otherwise = lbrace $+$ (nest i d) $+$ rbrace
+blockBraces :: Doc -> Doc
+blockBraces d | isEmpty d = lbrace <+> rbrace
+              | otherwise = lbrace $+$ (nest 4 d) $+$ rbrace
+
+objectBraces :: Doc -> Doc
+objectBraces d | isEmpty d = lbrace <+> rbrace
+               | otherwise = lbrace $+$ (nest 2 d) $+$ rbrace
+
+indentStmt :: Bool -> Doc -> Doc
+indentStmt isBlock d | isBlock = d
+                     | otherwise = nest 4 d
 
 -- | Pretty print a number
 prettyNum :: Number -> Doc
@@ -79,11 +87,71 @@ SEM Program [ | | pp : {Doc} ]
 
 SEM SourceElement [ | | pp : {Doc} ]
   | SEStatement lhs.pp = @stmt.pp
-  | SEFunctionDecl lhs.pp = text "function" <+> text @ident <> parens (commaList (map text @params)) $$
-                              blockBraces 4 (vcat @body.pp)
+  | SEFunctionDecl lhs.pp = text "function" <+> text @ident <> parens (commaList (map text @params)) $+$
+                              blockBraces (vcat @body.pp) $+$ empty
+
+-------------------------------------------------------------------------------
+-- Statement
+-------------------------------------------------------------------------------
+
+ATTR Statements [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM MbStatement [ | | pp : {Doc} isBlock : {Bool} ]
+  | Just    lhs.pp      = @just.pp
+            lhs.isBlock = @just.isBlock
+  | Nothing lhs.pp      = empty
+            lhs.isBlock = False
+
+SEM Statement [ | | pp : {Doc} isBlock : {Bool} ]
+  | SEmpty    lhs.pp      = semi
+              lhs.isBlock = False
+  | SBlock    lhs.pp      = blockBraces (vcat @body.pp)
+              lhs.isBlock = True
+  | SVariable lhs.pp      = text "var" <+> (vSepList comma @assigns.pp) <> semi
+              lhs.isBlock = False
+  | SExpression lhs.pp    = @expr.pp <> semi
+              lhs.isBlock = False
+  | SIf       lhs.pp      = text "if" <+> parens @cond.pp $+$ indentStmt @thenStmt.isBlock @thenStmt.pp $+$
+                              if isEmpty @elseStmt.pp then empty
+                                 else text "else" $+$ indentStmt @elseStmt.isBlock @elseStmt.pp
+              lhs.isBlock = False
+  | SDoWhile  lhs.pp      = text "do" $$ @body.pp <+> text "while" <+> parens @cond.pp <> semi
+              lhs.isBlock = False
+  | SWhile    lhs.pp      = text "while" <+> parens @cond.pp <+> indentStmt @stmt.isBlock @stmt.pp
+              lhs.isBlock = False
+  | SFor      lhs.pp      = text "for" <+> parens @clause.pp $$ indentStmt @stmt.isBlock @stmt.pp
+              lhs.isBlock = False
+  | SContinue lhs.pp      = text "continue" <+> maybeText @ident <> semi
+              lhs.isBlock = False
+  | SBreak    lhs.pp      = text "break" <+> maybeText @ident <> semi
+              lhs.isBlock = False
+  | SReturn   lhs.pp      = text "return" <+> @value.pp <> semi
+              lhs.isBlock = False
+  | SWith     lhs.pp      = text "with" <+> parens @expr.pp $$ indentStmt @stmt.isBlock @stmt.pp
+              lhs.isBlock = False
+  | SSwitch   lhs.pp      = text "switch" <+> parens @cond.pp $$ blockBraces (vcat @cases.pp)
+              lhs.isBlock = False
+  | SLabel    lhs.pp      = text @name <> colon <+> @stmt.pp
+              lhs.isBlock = False
+  | SThrow    lhs.pp      = text "throw" <+> @value.pp <> semi
+              lhs.isBlock = False
+  | STry      lhs.pp      = text "try" $+$ indentStmt @stmt.isBlock @stmt.pp $+$
+                              (if isEmpty @catch.pp then empty else @catch.pp) $+$
+                              (if isEmpty @finally.pp then empty else text "finally" $+$ indentStmt @finally.isBlock @finally.pp)
+              lhs.isBlock = False
+  | SDebugger lhs.pp      = text "debugger" <> semi
+              lhs.isBlock = False
+
+-------------------------------------------------------------------------------
+-- Expression
+-------------------------------------------------------------------------------
 
 ATTR Expression AssignOp [ | | pp : {Doc} ]
 ATTR Expressions Arguments [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM MbExpression [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
 
 SEM Expression
   | EExpression  lhs.pp = lparen <> @expr.pp <> rparen
@@ -95,10 +163,10 @@ SEM Expression
   | EString      lhs.pp = text @value
   | ERegExp      lhs.pp = text @regexp
   | EArray       lhs.pp = lbrack <> commaList @exprs.pp <> rbrack
-  | EObject      lhs.pp = blockBraces 2 (vSepList comma @props.pp)
+  | EObject      lhs.pp = objectBraces (vSepList comma @props.pp)
   | EFunction    lhs.pp = text "function" <+> maybeText @ident <>
                             parens (commaList (map text @params)) $$
-                            blockBraces 4 (vcat @body.pp)
+                            blockBraces (vcat @body.pp)
   | EIndex       lhs.pp = @expr.pp <> brackets @index.pp
   | EDot         lhs.pp = @expr.pp <> text "." <> text @propertyName
   | ENew         lhs.pp = text "new" <+> @expr.pp <> parens (commaList @args.pp)
@@ -155,44 +223,56 @@ SEM AssignOp
   | ABitXOR      lhs.pp = text "^="
   | ABitOR       lhs.pp = text "|="
 
+-------------------------------------------------------------------------------
+-- Object properties
+-------------------------------------------------------------------------------
+
 ATTR PropertyAssignments [ | | pp USE {:} {[]} : {[Doc]} ]
 
 SEM PropertyAssignment [ | | pp : {Doc} ]
   | PAExpr lhs.pp = @name.pp <+> text ":" <+> @value.pp
   | PAGet  lhs.pp = text "get" <+> @name.pp <> text "()" $$
-                      blockBraces 4 (vcat @body.pp)
+                      blockBraces (vcat @body.pp)
   | PASet  lhs.pp = text "set" <+> @name.pp <> parens (text @args) $$
-                      blockBraces 4 (vcat @body.pp)
+                      blockBraces (vcat @body.pp)
 
 SEM PropertyName [ | | pp : {Doc} ]
   | PNIdent   lhs.pp = text @name
   | PNString  lhs.pp = text @str
   | PNNumeric lhs.pp = text (show @num)
 
+SEM MbDeclExpr [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
+
+-------------------------------------------------------------------------------
+-- Declarations (var)
+-------------------------------------------------------------------------------
+
 ATTR Decls [ | | pp USE {:} {[]} : {[Doc]} ]
+
+SEM MbDecl [ | | pp : {Doc} ]
+  | Just lhs.pp    = @just.pp
+  | Nothing lhs.pp = empty
 
 SEM Decl [ | | pp : {Doc} ]
   | Decl lhs.pp = text @ident <+>
                     if isEmpty @expr.pp then empty else text "=" <+> @expr.pp
 
-SEM MbDeclExpr [ | | pp : {Doc} ]
-  | Just lhs.pp    = @just.pp
-  | Nothing lhs.pp = empty
-
-SEM MbExpression [ | | pp : {Doc} ]
-  | Just lhs.pp    = @just.pp
-  | Nothing lhs.pp = empty
-
-SEM MbDecl [ | | pp : {Doc} ]
-  | Just lhs.pp    = @just.pp
-  | Nothing lhs.pp = empty
+-------------------------------------------------------------------------------
+-- Catch clause
+-------------------------------------------------------------------------------
 
 SEM MbCatchClause [ | | pp : {Doc} ]
   | Just lhs.pp    = @just.pp
   | Nothing lhs.pp = empty
 
 SEM CatchClause [ | | pp : {Doc} ]
-  | CatchClause lhs.pp = text "catch" <+> parens (text @ident) $$ @stmt.pp
+  | CatchClause lhs.pp = text "catch" <+> parens (text @ident) $$ indentStmt @stmt.isBlock @stmt.pp
+
+-------------------------------------------------------------------------------
+-- For clause
+-------------------------------------------------------------------------------
 
 SEM ForClause [ | | pp : {Doc} ]
   | FCExprExprExpr lhs.pp = @init.pp <> semi <+> @cond.pp <> semi <+> @next.pp
@@ -200,36 +280,12 @@ SEM ForClause [ | | pp : {Doc} ]
   | FCLhsIn        lhs.pp = @elem.pp <+> text "in" <+> @set.pp
   | FCVarIn        lhs.pp = text "var" <+> @elem.pp <+> text "in" <+> @set.pp
 
-ATTR Statements [ | | pp USE {:} {[]} : {[Doc]} ]
+-------------------------------------------------------------------------------
+-- Case clause
+-------------------------------------------------------------------------------
 
 ATTR CaseClauses [ | | pp USE {:} {[]} : {[Doc]} ]
 
 SEM CaseClause [ | | pp : {Doc} ]
   | CCCase     lhs.pp = text "case" <+> @value.pp <> colon <+> foldr ($$) empty @body.pp
   | CCDefault  lhs.pp = text "default" <> colon <+> foldr ($$) empty @body.pp
-
-SEM MbStatement [ | | pp : {Doc} ]
-  | Just lhs.pp    = @just.pp
-  | Nothing lhs.pp = empty
-
-SEM Statement [ | | pp : {Doc} ]
-  | SEmpty    lhs.pp = semi
-  | SBlock    lhs.pp = blockBraces 4 (vcat @body.pp)
-  | SVariable lhs.pp = text "var" <+> (vSepList comma @assigns.pp) <> semi
-  | SExpression lhs.pp = @expr.pp <> semi
-  | SIf       lhs.pp = text "if" <+> parens @cond.pp $+$ @thenStmt.pp $+$
-                         if isEmpty @elseStmt.pp then empty else text "else" $+$ @elseStmt.pp
-  | SDoWhile  lhs.pp = text "do" $$ @body.pp <+> text "while" <+> parens @cond.pp <> semi
-  | SWhile    lhs.pp = text "while" <+> parens @cond.pp <+> @stmt.pp
-  | SFor      lhs.pp = text "for" <+> parens @clause.pp $$ @stmt.pp
-  | SContinue lhs.pp = text "continue" <+> maybeText @ident <> semi
-  | SBreak    lhs.pp = text "break" <+> maybeText @ident <> semi
-  | SReturn   lhs.pp = text "return" <+> @value.pp <> semi
-  | SWith     lhs.pp = text "with" <+> parens @expr.pp $$ @stmt.pp
-  | SSwitch   lhs.pp = text "switch" <+> parens @cond.pp $$ blockBraces 4 (vcat @cases.pp)
-  | SLabel    lhs.pp = text @name <> colon <+> @stmt.pp
-  | SThrow    lhs.pp = text "throw" <+> @value.pp <> semi
-  | STry      lhs.pp = text "try" $$ @stmt.pp $+$
-                         (if isEmpty @catch.pp then empty else @catch.pp) $+$
-                         (if isEmpty @finally.pp then empty else text "finally" $+$ @finally.pp)
-  | SDebugger lhs.pp = text "debugger" <> semi
