@@ -63,7 +63,7 @@ pEThis = EThis <$ pReserved "this"
 pEIdent = EIdent <$> pValToken TkIdent
 pERegExp = ERegExp <$> pValToken TkRegExp
 pEObject = EObject <$> pPack "{" (pCommaList pPropertyAssignment) "}"
-pEArray = EArray <$> pPack "[" (pCommaList (option undef pAssignmentExpression)) "]"
+pEArray = EArray <$> pPack "[" (pCommaList pAssignmentExpression) "]"
 pEExpression = EExpression <$> pPack "(" pExpression ")"
 
 -- PropertyName (11.1.5)
