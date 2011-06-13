@@ -1,5 +1,5 @@
 Name:                JsLib
-Version:             0.5
+Version:             0.6
 Description:         Strict ECMAScript (JavaScript) edition 5 parser library for Haskell
 License:             BSD3
 License-file:        LICENSE
