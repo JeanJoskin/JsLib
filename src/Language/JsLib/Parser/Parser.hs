@@ -33,6 +33,7 @@ import Language.JsLib.Scanner.Tokens
 import Language.JsLib.AST
 import Control.Applicative
 import Language.JsLib.Parser.Prim
+import Language.JsLib.StringUtil
 
 pArguments :: JsParser [Expression]
 pArguments = pPack "(" (pCommaList pAssignmentExpression) ")"
@@ -51,7 +52,7 @@ pLiteral = pENull <|> pEBool <|> pENumeric <|> pEString <?> "literal"
 pENull = ENull <$ pReserved "null"
 pEBool = EBool <$> anyOp [(True,"true"),(False,"false")]
 pENumeric = ENumeric . readNumeric <$> pValToken TkNumeric
-pEString = EString <$> pValToken TkString
+pEString = EString . readQuotedString <$> pValToken TkString
 
 -- PrimaryExpression (11.1) (+RegExp)
 pPrimaryExpression :: JsParser Expression

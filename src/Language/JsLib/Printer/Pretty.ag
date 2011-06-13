@@ -38,6 +38,7 @@ imports
 import Text.PrettyPrint.HughesPJ
 import Language.JsLib.AST hiding (Ident,Number)
 import Language.JsLib.Printer.Util
+import Language.JsLib.StringUtil
 }
 
 {
@@ -131,7 +132,7 @@ SEM Expression
   | ENull        lhs.pp = text "null"
   | EBool        lhs.pp = text (if @value then "true" else "false")
   | ENumeric     lhs.pp = prettyNum @value
-  | EString      lhs.pp = text @value
+  | EString      lhs.pp = text (writeQuotedString @value)
   | ERegExp      lhs.pp = text @regexp
   | EArray       lhs.pp = lbrack <> commaList @exprs.pp <> rbrack
   | EObject      lhs.pp = objectBraces (vSepList comma @props.pp)
